@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { signIn, sendMagicLink } from '@/app/actions/auth'
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const [isMagicLink, setIsMagicLink] = useState(false)
+  const [activeTab, setActiveTab] = useState('magic-link')
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -19,7 +20,7 @@ export function LoginForm() {
     setMessage(null)
 
     try {
-      if (isMagicLink) {
+      if (activeTab === 'magic-link') {
         const result = await sendMagicLink(formData)
         if (result.error) {
           setError(result.error)
@@ -48,58 +49,61 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              required
-              disabled={isLoading}
-            />
-          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="password">Password</TabsTrigger>
+            <TabsTrigger value="magic-link">Magic Link</TabsTrigger>
+          </TabsList>
 
-          {!isMagicLink && (
+          <form action={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="password"
-                name="password"
-                type="password"
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
                 required
                 disabled={isLoading}
               />
             </div>
-          )}
 
-          {error && (
-            <div className="text-sm text-red-500 dark:text-red-400">
-              {error}
-            </div>
-          )}
+            <TabsContent value="password" className="mt-0 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required={activeTab === 'password'}
+                  disabled={isLoading}
+                />
+              </div>
+            </TabsContent>
 
-          {message && (
-            <div className="text-sm text-green-500 dark:text-green-400">
-              {message}
-            </div>
-          )}
+            <TabsContent value="magic-link" className="mt-0">
+              <p className="text-sm text-muted-foreground">
+                We&apos;ll send you a magic link to sign in without a password.
+              </p>
+            </TabsContent>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Loading...' : isMagicLink ? 'Send Magic Link' : 'Sign In'}
-          </Button>
+            {error && (
+              <div className="text-sm text-red-500 dark:text-red-400">
+                {error}
+              </div>
+            )}
 
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full"
-            onClick={() => setIsMagicLink(!isMagicLink)}
-            disabled={isLoading}
-          >
-            {isMagicLink ? 'Use password instead' : 'Use magic link instead'}
-          </Button>
-        </form>
+            {message && (
+              <div className="text-sm text-green-500 dark:text-green-400">
+                {message}
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Loading...' : activeTab === 'magic-link' ? 'Send Magic Link' : 'Sign In'}
+            </Button>
+          </form>
+        </Tabs>
       </CardContent>
     </Card>
   )
