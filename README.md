@@ -62,7 +62,7 @@ Create a `.env.local` file in the root directory with your Supabase credentials:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your_supabase_publishable_key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
@@ -113,7 +113,7 @@ The `/portal` route is protected and requires authentication. Unauthenticated us
 
 1. Create a project at [Supabase](https://supabase.com)
 2. Go to Project Settings → API
-3. Copy your `Project URL` and `Publishable Anon Key`
+3. Copy your `Project URL` and `anon/public key`
 4. Add them to your `.env.local` file
 5. Enable desired authentication providers in Supabase dashboard
 
