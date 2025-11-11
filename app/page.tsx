@@ -2,8 +2,9 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { CircleCheckIcon, CircleHelpIcon, CircleIcon } from 'lucide-react'
+import { CircleCheckIcon, CircleHelpIcon, CircleIcon, LayoutDashboard } from 'lucide-react'
 import { ThemeToggle } from '../components/theme-toggle'
+import { Button } from '../components/ui/button'
 import { useIsMobile } from '../hooks/use-mobile'
 import {
   NavigationMenu,
@@ -216,7 +217,15 @@ export default function Home() {
               </NavigationMenuList>
             </NavigationMenu>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link href="/portal">
+                <LayoutDashboard className="h-5 w-5" />
+                <span>Portal</span>
+              </Link>
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
