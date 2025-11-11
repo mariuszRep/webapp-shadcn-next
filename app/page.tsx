@@ -6,6 +6,7 @@ import { CircleCheckIcon, CircleHelpIcon, CircleIcon, LayoutDashboard } from 'lu
 import { ThemeToggle } from '../components/theme-toggle'
 import { Button } from '../components/ui/button'
 import { useIsMobile } from '../hooks/use-mobile'
+import { useUser } from '../hooks/use-user'
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -56,6 +57,7 @@ const components: { title: string; href: string; description: string }[] = [
 
 export default function Home() {
   const isMobile = useIsMobile()
+  const { user, loading } = useUser()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -218,12 +220,25 @@ export default function Home() {
             </NavigationMenu>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild>
-              <Link href="/portal">
-                <LayoutDashboard className="h-5 w-5" />
-                <span>Portal</span>
-              </Link>
-            </Button>
+            {loading ? (
+              <div className="h-10 w-24 animate-pulse rounded-md bg-muted" />
+            ) : user ? (
+              <Button asChild>
+                <Link href="/portal">
+                  <LayoutDashboard className="h-5 w-5" />
+                  <span>Portal</span>
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Log in</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup">Sign up</Link>
+                </Button>
+              </>
+            )}
             <ThemeToggle />
           </div>
         </div>
