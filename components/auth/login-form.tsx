@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,10 +10,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { signIn, sendMagicLink } from '@/app/actions/auth'
 
 export function LoginForm() {
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('magic-link')
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  // Check for errors in URL params (e.g., expired magic link)
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+    }
+  }, [searchParams])
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)

@@ -4,7 +4,15 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const error_description = searchParams.get('error_description')
   const next = searchParams.get('next') ?? '/portal'
+
+  // Handle Supabase auth errors (like expired OTP)
+  if (error_description) {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(error_description)}`
+    )
+  }
 
   if (code) {
     const supabase = await createClient()
