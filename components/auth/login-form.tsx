@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { signIn, sendMagicLink } from '@/app/actions/auth'
+import { signIn, sendMagicLink } from '@/app/auth/actions'
 
 export function LoginForm() {
   const searchParams = useSearchParams()

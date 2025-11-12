@@ -3,10 +3,10 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { CircleCheckIcon, CircleHelpIcon, CircleIcon, LayoutDashboard } from 'lucide-react'
-import { ThemeToggle } from '../components/theme-toggle'
-import { Button } from '../components/ui/button'
-import { useIsMobile } from '../hooks/use-mobile'
-import { useUser } from '../hooks/use-user'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { Button } from '@/components/ui/button'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useUser } from '@/hooks/use-user'
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -15,7 +15,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
-} from '../components/ui/navigation-menu'
+} from '@/components/ui/navigation-menu'
 
 const components: { title: string; href: string; description: string }[] = [
   {

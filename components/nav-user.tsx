@@ -29,7 +29,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { signOut } from "@/app/actions/auth"
+import { signOut } from "@/app/auth/actions"
 
 export function NavUser({
   user,
