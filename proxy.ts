@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Handle auth errors that Supabase redirects to root
   if (request.nextUrl.pathname === '/') {
     const errorDescription = request.nextUrl.searchParams.get('error_description')
