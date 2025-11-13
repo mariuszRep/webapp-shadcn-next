@@ -2,12 +2,9 @@
 
 import * as React from "react"
 import {
-  AudioWaveform,
   BookOpen,
   Bot,
-  Command,
   Frame,
-  GalleryVerticalEnd,
   Map,
   PieChart,
   Settings2,
@@ -17,7 +14,7 @@ import {
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -25,27 +22,12 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { useUser } from "@/hooks/use-user"
+import { useWorkspace } from "@/hooks/use-workspace"
+import { getOrganizationWorkspaces } from "@/lib/actions/workspace-actions"
+import type { Workspace } from "@/lib/types/database"
 
 // This is sample data.
 const data = {
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
       title: "Playground",
@@ -153,7 +135,28 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, loading } = useUser()
+  const { user, organization, workspace } = useWorkspace()
+  const [workspaces, setWorkspaces] = React.useState<Workspace[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    async function fetchWorkspaces() {
+      if (!organization?.id) {
+        setLoading(false)
+        return
+      }
+
+      const result = await getOrganizationWorkspaces(organization.id)
+
+      if (result.success && result.workspaces) {
+        setWorkspaces(result.workspaces)
+      }
+
+      setLoading(false)
+    }
+
+    fetchWorkspaces()
+  }, [organization?.id])
 
   const userData = user
     ? {
@@ -170,7 +173,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        {loading ? (
+          <div className="p-4 text-sm text-muted-foreground">Loading workspaces...</div>
+        ) : (
+          <WorkspaceSwitcher workspaces={workspaces} />
+        )}
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
