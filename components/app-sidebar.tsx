@@ -135,7 +135,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, organization, workspace } = useWorkspace()
+  const { user, organization } = useWorkspace()
   const [workspaces, setWorkspaces] = React.useState<Workspace[]>([])
   const [loading, setLoading] = React.useState(true)
 

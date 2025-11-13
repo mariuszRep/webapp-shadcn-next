@@ -36,7 +36,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import type { Organization, Workspace } from '@/lib/types/database'
 import { createOrganization, updateOrganization, deleteOrganization } from '@/lib/actions/organization-actions'
-import { createWorkspace, updateWorkspace, deleteWorkspace, getOrganizationWorkspaces } from '@/lib/actions/workspace-actions'
+import { createWorkspace, updateWorkspace, deleteWorkspace as deleteWorkspaceAction, getOrganizationWorkspaces } from '@/lib/actions/workspace-actions'
 
 interface OrganizationManagerProps {
   organizations: Organization[]
@@ -238,7 +238,7 @@ export function OrganizationManager({ organizations, selectedOrgId, currentWorks
     if (!deleteWorkspace) return
 
     startTransition(async () => {
-      const result = await deleteWorkspace(deleteWorkspace.id)
+      const result = await deleteWorkspaceAction(deleteWorkspace.id)
 
       if (result.success) {
         setIsDeleteWorkspaceDialogOpen(false)
@@ -539,7 +539,7 @@ export function OrganizationManager({ organizations, selectedOrgId, currentWorks
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the organization "{deleteOrg?.name}" and all associated workspaces. This action cannot be undone.
+              This will permanently delete the organization &quot;{deleteOrg?.name}&quot; and all associated workspaces. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error && <p className="text-sm text-destructive px-6">{error}</p>}
@@ -663,7 +663,7 @@ export function OrganizationManager({ organizations, selectedOrgId, currentWorks
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the workspace "{deleteWorkspace?.name}". This action cannot be undone.
+              This will permanently delete the workspace &quot;{deleteWorkspace?.name}&quot;. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error && <p className="text-sm text-destructive px-6">{error}</p>}
