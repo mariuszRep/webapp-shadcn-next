@@ -91,7 +91,7 @@ The application supports the following authentication methods:
 - **`lib/supabase/server.ts`** - Server-side Supabase client
 - **`lib/supabase/middleware.ts`** - Authentication middleware
 - **`app/actions/auth.ts`** - Server actions for authentication
-- **`components/auth/`** - Authentication UI components
+- **`components/`** - Authentication UI components
   - `login-form.tsx` - Login form component
   - `signup-form.tsx` - Sign-up form component
   - `oauth-buttons.tsx` - OAuth provider buttons
