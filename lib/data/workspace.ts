@@ -81,3 +81,23 @@ export const getPersonalWorkspace = cache(async (userId: string): Promise<{ orga
     workspaceId: workspace.id,
   }
 })
+
+// Get first workspace for an organization
+export async function getFirstWorkspaceForOrg(organizationId: string, userId: string): Promise<string> {
+  const supabase = await createClient()
+
+  const { data: workspace, error } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .or(`created_by.eq.${userId},updated_by.eq.${userId}`)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (error || !workspace) {
+    throw new Error('No workspace found for this organization')
+  }
+
+  return workspace.id
+}

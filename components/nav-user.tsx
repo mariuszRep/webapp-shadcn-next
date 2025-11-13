@@ -1,13 +1,14 @@
 "use client"
 
 import {
-  BadgeCheck,
   Bell,
   ChevronsUpDown,
   CreditCard,
   LogOut,
+  Settings2,
   Sparkles,
 } from "lucide-react"
+import Link from "next/link"
 
 import {
   Avatar,
@@ -30,6 +31,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { signOut } from "@/app/auth/actions"
+import { useOrganizationWorkspace } from "@/components/providers/organization-workspace-provider"
 
 export function NavUser({
   user,
@@ -41,6 +43,12 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const context = useOrganizationWorkspace()
+
+  // Build settings URL with current org/workspace context
+  const settingsUrl = context?.organization && context?.workspace
+    ? `/organization/${context.organization.id}/workspace/${context.workspace.id}/settings`
+    : '/settings'
 
   return (
     <SidebarMenu>
@@ -89,9 +97,11 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
+              <DropdownMenuItem asChild>
+                <Link href={settingsUrl}>
+                  <Settings2 />
+                  Settings
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />

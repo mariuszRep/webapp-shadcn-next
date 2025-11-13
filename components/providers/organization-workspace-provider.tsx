@@ -30,9 +30,14 @@ export function OrganizationWorkspaceProvider({
 
 export function useOrganizationWorkspace() {
   const context = useContext(OrganizationWorkspaceContext)
+  return context
+}
+
+export function useOrganizationWorkspaceRequired() {
+  const context = useOrganizationWorkspace()
 
   if (!context) {
-    throw new Error('useOrganizationWorkspace must be used within OrganizationWorkspaceProvider')
+    throw new Error('useOrganizationWorkspaceRequired must be used within OrganizationWorkspaceProvider')
   }
 
   return context
