@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getPersonalWorkspace } from '@/lib/data/workspace'
 
-export default async function PortalRedirectPage() {
-  // Get current user
+export default async function Page() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -11,9 +10,7 @@ export default async function PortalRedirectPage() {
     redirect('/login')
   }
 
-  // Get user's personal organization and workspace
   const { organizationId, workspaceId } = await getPersonalWorkspace(user.id)
 
-  // Redirect to personal workspace portal
-  redirect(`/organization/${organizationId}/workspace/${workspaceId}/portal`)
+  redirect(`/organization/${organizationId}/workspace/${workspaceId}`)
 }

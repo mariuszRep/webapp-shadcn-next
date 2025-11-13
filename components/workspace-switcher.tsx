@@ -54,7 +54,7 @@ export function WorkspaceSwitcher({ workspaces }: WorkspaceSwitcherProps) {
 
   const handleWorkspaceSwitch = (workspace: Workspace) => {
     if (organizationId) {
-      router.push(`/organization/${organizationId}/workspace/${workspace.id}/portal`)
+      router.push(`/organization/${organizationId}/workspace/${workspace.id}`)
     }
   }
 
@@ -77,7 +77,7 @@ export function WorkspaceSwitcher({ workspaces }: WorkspaceSwitcherProps) {
       if (result.success && result.workspace) {
         setIsDialogOpen(false)
         setWorkspaceName("")
-        router.push(`/organization/${organizationId}/workspace/${result.workspace.id}/portal`)
+        router.push(`/organization/${organizationId}/workspace/${result.workspace.id}`)
         router.refresh()
       } else {
         setError(result.error || "Failed to create workspace")
