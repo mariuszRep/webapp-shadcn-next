@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Organization } from '@/lib/types/database'
 import { getFirstWorkspaceForOrg } from '@/lib/data/workspace'
+import { requirePermission } from '@/lib/utils/permissions'
 
 export async function createOrganization(name: string): Promise<{ success: boolean; organization?: Organization; error?: string }> {
   try {
@@ -62,11 +63,10 @@ export async function getUserOrganizations(): Promise<{ success: boolean; organi
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Fetch organizations where user has access
+    // Fetch organizations where user has access (RLS enforces permissions)
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -101,7 +101,10 @@ export async function updateOrganization(organizationId: string, name: string): 
       return { success: false, error: 'Organization name is too long' }
     }
 
-    // Update organization
+    // Check permission to update organization
+    await requirePermission('organization', 'update', organizationId)
+
+    // Update organization (RLS enforces permissions)
     const { data, error } = await supabase
       .from('organizations')
       .update({
@@ -109,7 +112,6 @@ export async function updateOrganization(organizationId: string, name: string): 
         updated_by: user.id,
       })
       .eq('id', organizationId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .select()
       .single()
 
@@ -150,12 +152,14 @@ export async function deleteOrganization(organizationId: string): Promise<{ succ
       return { success: false, error: 'Cannot delete personal organization' }
     }
 
-    // Delete organization
+    // Check permission to delete organization
+    await requirePermission('organization', 'delete', organizationId)
+
+    // Delete organization (RLS enforces permissions)
     const { error } = await supabase
       .from('organizations')
       .delete()
       .eq('id', organizationId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
 
     if (error) {
       console.error('Error deleting organization:', error)

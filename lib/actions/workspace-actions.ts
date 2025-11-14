@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Workspace } from '@/lib/types/database'
+import { requirePermission } from '@/lib/utils/permissions'
 
 export async function createWorkspace(organizationId: string, name: string): Promise<{ success: boolean; workspace?: Workspace; error?: string }> {
   try {
@@ -24,7 +25,10 @@ export async function createWorkspace(organizationId: string, name: string): Pro
       return { success: false, error: 'Workspace name is too long' }
     }
 
-    // Create workspace
+    // Check permission to create workspace
+    await requirePermission('workspace', 'create', organizationId)
+
+    // Create workspace (RLS enforces permissions)
     const { data, error } = await supabase
       .from('workspaces')
       .insert({
@@ -62,12 +66,11 @@ export async function getOrganizationWorkspaces(organizationId: string): Promise
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Fetch workspaces for the organization where user has access
+    // Fetch workspaces for the organization where user has access (RLS enforces permissions)
     const { data, error } = await supabase
       .from('workspaces')
       .select('*')
       .eq('organization_id', organizationId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -102,7 +105,21 @@ export async function updateWorkspace(workspaceId: string, name: string): Promis
       return { success: false, error: 'Workspace name is too long' }
     }
 
-    // Update workspace
+    // Fetch workspace to get organization_id for permission check
+    const { data: workspace, error: fetchError } = await supabase
+      .from('workspaces')
+      .select('organization_id')
+      .eq('id', workspaceId)
+      .single()
+
+    if (fetchError || !workspace) {
+      return { success: false, error: 'Workspace not found' }
+    }
+
+    // Check permission to update workspace
+    await requirePermission('workspace', 'update', workspace.organization_id, workspaceId)
+
+    // Update workspace (RLS enforces permissions)
     const { data, error } = await supabase
       .from('workspaces')
       .update({
@@ -110,7 +127,6 @@ export async function updateWorkspace(workspaceId: string, name: string): Promis
         updated_by: user.id,
       })
       .eq('id', workspaceId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .select()
       .single()
 
@@ -140,23 +156,29 @@ export async function deleteWorkspace(workspaceId: string): Promise<{ success: b
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Check if this is a personal workspace
-    const { data: workspace } = await supabase
+    // Fetch workspace to check name and get organization_id
+    const { data: workspace, error: fetchError } = await supabase
       .from('workspaces')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', workspaceId)
       .single()
 
-    if (workspace && workspace.name === 'Personal') {
+    if (fetchError || !workspace) {
+      return { success: false, error: 'Workspace not found' }
+    }
+
+    if (workspace.name === 'Personal') {
       return { success: false, error: 'Cannot delete personal workspace' }
     }
 
-    // Delete workspace
+    // Check permission to delete workspace
+    await requirePermission('workspace', 'delete', workspace.organization_id, workspaceId)
+
+    // Delete workspace (RLS enforces permissions)
     const { error } = await supabase
       .from('workspaces')
       .delete()
       .eq('id', workspaceId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
 
     if (error) {
       console.error('Error deleting workspace:', error)

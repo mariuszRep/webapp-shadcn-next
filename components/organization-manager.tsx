@@ -339,7 +339,11 @@ export function OrganizationManager({ organizations, selectedOrgId, currentWorks
               </div>
               {selectedOrg && (
                 <div className="text-sm text-muted-foreground">
-                  Created {new Date(selectedOrg.created_at).toLocaleDateString()}
+                  Created {new Date(selectedOrg.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
                 </div>
               )}
 
@@ -385,7 +389,11 @@ export function OrganizationManager({ organizations, selectedOrgId, currentWorks
                               <div className="flex-1">
                                 <h4 className="font-medium text-sm">{workspace.name}</h4>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Created {new Date(workspace.created_at).toLocaleDateString()}
+                                  Created {new Date(workspace.created_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
                                 </p>
                               </div>
                               <div className="flex gap-1">

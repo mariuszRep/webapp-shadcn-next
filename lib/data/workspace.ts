@@ -60,8 +60,25 @@ export const getPersonalWorkspace = cache(async (userId: string): Promise<{ orga
     .eq('name', 'Personal')
     .single()
 
-  if (orgError || !org) {
-    throw new Error('Personal organization not found')
+  if (orgError) {
+    console.error('Error fetching Personal organization:', orgError)
+    throw new Error(`Personal organization not found: ${orgError.message}`)
+  }
+
+  if (!org) {
+    // Try to find ANY organization the user has access to as a fallback
+    const { data: anyOrg } = await supabase
+      .from('organizations')
+      .select('id')
+      .limit(1)
+      .single()
+
+    if (anyOrg) {
+      // User has access to an org, just not a Personal one
+      throw new Error('Personal organization not found, but user has access to other organizations')
+    }
+
+    throw new Error('Personal organization not found and user has no organization access')
   }
 
   // Find personal workspace
@@ -72,7 +89,12 @@ export const getPersonalWorkspace = cache(async (userId: string): Promise<{ orga
     .eq('name', 'Personal')
     .single()
 
-  if (workspaceError || !workspace) {
+  if (workspaceError) {
+    console.error('Error fetching Personal workspace:', workspaceError)
+    throw new Error(`Personal workspace not found: ${workspaceError.message}`)
+  }
+
+  if (!workspace) {
     throw new Error('Personal workspace not found')
   }
 
