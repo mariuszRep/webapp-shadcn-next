@@ -11,14 +11,23 @@ export const getOrganization = cache(async (organizationId: string, userId: stri
     .from('organizations')
     .select('*')
     .eq('id', organizationId)
+    .is('deleted_at', null)
     .single()
 
   if (error || !data) {
     notFound()
   }
 
-  // Validate user has access (created by or updated by)
-  if (data.created_by !== userId && data.updated_by !== userId) {
+  // Validate user is a member of this organization
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('user_id')
+    .eq('org_id', organizationId)
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .single()
+
+  if (!membership) {
     notFound()
   }
 
@@ -48,58 +57,45 @@ export const getWorkspace = cache(async (workspaceId: string, organizationId: st
   return data
 })
 
-// Get user's personal organization and workspace for redirect
+// Get user's first accessible organization and workspace for redirect
 export const getPersonalWorkspace = cache(async (userId: string): Promise<{ organizationId: string; workspaceId: string }> => {
   const supabase = await createClient()
 
-  // Find personal organization
-  const { data: org, error: orgError } = await supabase
-    .from('organizations')
-    .select('id')
-    .eq('created_by', userId)
-    .eq('name', 'Personal')
+  // Find ANY organization the user is a member of (including invited orgs)
+  const { data: membership, error: memberError } = await supabase
+    .from('organization_members')
+    .select('org_id')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+    .limit(1)
     .single()
 
-  if (orgError) {
-    console.error('Error fetching Personal organization:', orgError)
-    throw new Error(`Personal organization not found: ${orgError.message}`)
+  if (memberError || !membership) {
+    console.error('Error fetching organization membership:', memberError)
+    throw new Error('No organization found for user')
   }
 
-  if (!org) {
-    // Try to find ANY organization the user has access to as a fallback
-    const { data: anyOrg } = await supabase
-      .from('organizations')
-      .select('id')
-      .limit(1)
-      .single()
+  const organizationId = membership.org_id
 
-    if (anyOrg) {
-      // User has access to an org, just not a Personal one
-      throw new Error('Personal organization not found, but user has access to other organizations')
-    }
-
-    throw new Error('Personal organization not found and user has no organization access')
-  }
-
-  // Find personal workspace
+  // Find ANY workspace in that organization created by this user
   const { data: workspace, error: workspaceError } = await supabase
     .from('workspaces')
     .select('id')
-    .eq('organization_id', org.id)
-    .eq('name', 'Personal')
+    .eq('organization_id', organizationId)
+    .eq('created_by', userId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+    .limit(1)
     .single()
 
-  if (workspaceError) {
-    console.error('Error fetching Personal workspace:', workspaceError)
-    throw new Error(`Personal workspace not found: ${workspaceError.message}`)
-  }
-
-  if (!workspace) {
-    throw new Error('Personal workspace not found')
+  if (workspaceError || !workspace) {
+    console.error('Error fetching workspace:', workspaceError)
+    throw new Error('No workspace found for user')
   }
 
   return {
-    organizationId: org.id,
+    organizationId,
     workspaceId: workspace.id,
   }
 })

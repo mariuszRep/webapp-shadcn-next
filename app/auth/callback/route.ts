@@ -25,7 +25,7 @@ function isValidRedirectPath(path: string): boolean {
 }
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams, origin, hash } = new URL(request.url)
   const code = searchParams.get('code')
   const error_description = searchParams.get('error_description')
   const nextParam = searchParams.get('next') ?? '/portal'
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const next = isValidRedirectPath(nextParam) ? nextParam : '/portal'
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('[AUTH CALLBACK]', { code: code?.substring(0, 20) + '...', error_description, next, origin })
+    console.log('[AUTH CALLBACK]', { code: code?.substring(0, 20) + '...', error_description, next, origin, hash })
   }
 
   // Handle Supabase auth errors (like expired OTP)
@@ -73,9 +73,13 @@ export async function GET(request: Request) {
     }
   }
 
-  // return the user to an error page with instructions
+  // Handle hash-based flow (used by inviteUserByEmail)
+  // The token is in the URL hash (#access_token=...) which we can't access server-side
+  // So we redirect to a client-side page that will handle the hash
   if (process.env.NODE_ENV === 'development') {
-    console.log('[AUTH CALLBACK] No code provided')
+    console.log('[AUTH CALLBACK] No code provided, checking for hash-based auth')
   }
-  return NextResponse.redirect(`${origin}/login?error=Could not authenticate user`)
+
+  // Redirect to a client page that can handle hash-based tokens
+  return NextResponse.redirect(`${origin}/auth/confirm?next=${encodeURIComponent(next)}`)
 }
