@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   updated_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
 );
 
 -- Add comment
