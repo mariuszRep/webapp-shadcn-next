@@ -62,11 +62,10 @@ export async function getUserOrganizations(): Promise<{ success: boolean; organi
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Fetch organizations where user has access
+    // Fetch organizations (RLS will handle permission filtering)
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -101,7 +100,7 @@ export async function updateOrganization(organizationId: string, name: string): 
       return { success: false, error: 'Organization name is too long' }
     }
 
-    // Update organization
+    // Update organization (RLS will handle permission checking)
     const { data, error } = await supabase
       .from('organizations')
       .update({
@@ -109,7 +108,6 @@ export async function updateOrganization(organizationId: string, name: string): 
         updated_by: user.id,
       })
       .eq('id', organizationId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .select()
       .single()
 
@@ -150,12 +148,11 @@ export async function deleteOrganization(organizationId: string): Promise<{ succ
       return { success: false, error: 'Cannot delete personal organization' }
     }
 
-    // Delete organization
+    // Delete organization (RLS will handle permission checking)
     const { error } = await supabase
       .from('organizations')
       .delete()
       .eq('id', organizationId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
 
     if (error) {
       console.error('Error deleting organization:', error)

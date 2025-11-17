@@ -62,12 +62,11 @@ export async function getOrganizationWorkspaces(organizationId: string): Promise
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Fetch workspaces for the organization where user has access
+    // Fetch workspaces for the organization (RLS will handle permission filtering)
     const { data, error } = await supabase
       .from('workspaces')
       .select('*')
       .eq('organization_id', organizationId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -102,7 +101,7 @@ export async function updateWorkspace(workspaceId: string, name: string): Promis
       return { success: false, error: 'Workspace name is too long' }
     }
 
-    // Update workspace
+    // Update workspace (RLS will handle permission checking)
     const { data, error } = await supabase
       .from('workspaces')
       .update({
@@ -110,7 +109,6 @@ export async function updateWorkspace(workspaceId: string, name: string): Promis
         updated_by: user.id,
       })
       .eq('id', workspaceId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
       .select()
       .single()
 
@@ -151,12 +149,11 @@ export async function deleteWorkspace(workspaceId: string): Promise<{ success: b
       return { success: false, error: 'Cannot delete personal workspace' }
     }
 
-    // Delete workspace
+    // Delete workspace (RLS will handle permission checking)
     const { error } = await supabase
       .from('workspaces')
       .delete()
       .eq('id', workspaceId)
-      .or(`created_by.eq.${user.id},updated_by.eq.${user.id}`)
 
     if (error) {
       console.error('Error deleting workspace:', error)

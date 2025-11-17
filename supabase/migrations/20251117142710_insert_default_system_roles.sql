@@ -3,13 +3,14 @@
 -- =====================================================
 -- Insert default system-wide roles (org_id = NULL)
 -- These will be used for auto-provisioning and can be referenced across all organizations
+-- Using SQL-aligned action terminology: SELECT, INSERT, UPDATE, DELETE
 
 -- Owner role - full control
 INSERT INTO public.roles (name, description, permissions, org_id, created_by, updated_by)
 SELECT
     'owner',
     'Organization owner with full administrative access',
-    '["read", "create", "update", "delete"]'::jsonb,
+    '["select", "insert", "update", "delete"]'::jsonb,
     NULL,
     NULL,
     NULL
@@ -22,7 +23,7 @@ INSERT INTO public.roles (name, description, permissions, org_id, created_by, up
 SELECT
     'admin',
     'Administrator with full access except billing and owner transfer',
-    '["read", "create", "update", "delete"]'::jsonb,
+    '["select", "insert", "update", "delete"]'::jsonb,
     NULL,
     NULL,
     NULL
@@ -34,8 +35,8 @@ WHERE NOT EXISTS (
 INSERT INTO public.roles (name, description, permissions, org_id, created_by, updated_by)
 SELECT
     'member',
-    'Standard member with read and create access',
-    '["read", "create"]'::jsonb,
+    'Standard member with read and write access',
+    '["select", "insert"]'::jsonb,
     NULL,
     NULL,
     NULL
@@ -48,7 +49,7 @@ INSERT INTO public.roles (name, description, permissions, org_id, created_by, up
 SELECT
     'viewer',
     'Read-only access to organization resources',
-    '["read"]'::jsonb,
+    '["select"]'::jsonb,
     NULL,
     NULL,
     NULL
