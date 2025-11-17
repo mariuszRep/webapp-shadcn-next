@@ -63,10 +63,17 @@ export async function getUserOrganizations(): Promise<{ success: boolean; organi
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Fetch organizations where user has access (RLS enforces permissions)
+    // Fetch organizations where user has access
+    // Defense-in-depth: explicitly join with organization_members to ensure membership
+    // RLS also enforces this, but explicit validation provides additional safety
     const { data, error } = await supabase
       .from('organizations')
-      .select('*')
+      .select(`
+        *,
+        organization_members!inner(user_id)
+      `)
+      .eq('organization_members.user_id', user.id)
+      .is('organization_members.deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (error) {

@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserOrganizations } from '@/lib/actions/organization-actions'
 import { SettingsClient } from '@/components/settings-client'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/empty-state'
+import { Building2 } from 'lucide-react'
 
 async function SettingsContent() {
   const supabase = await createClient()
@@ -35,6 +37,27 @@ async function SettingsContent() {
     )
   }
 
+  // Handle empty organizations
+  if (!result.organizations || result.organizations.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-2xl space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <p className="text-muted-foreground mt-2">
+              Manage your account and organization preferences.
+            </p>
+          </div>
+          <EmptyState
+            title="No Organizations"
+            description="You are not a member of any organizations yet. You need to be invited to an organization or create one to get started."
+            icon={<Building2 className="h-6 w-6 text-muted-foreground" />}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-4xl space-y-6">
@@ -44,7 +67,7 @@ async function SettingsContent() {
             Manage your account and organization preferences.
           </p>
         </div>
-        <SettingsClient organizations={result.organizations || []} />
+        <SettingsClient organizations={result.organizations} />
       </div>
     </div>
   )

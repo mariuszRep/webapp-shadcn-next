@@ -105,3 +105,26 @@ export interface OrganizationMemberWithUser extends OrganizationMember {
 export interface PrincipalRoleAssignmentWithRole extends PrincipalRoleAssignment {
   role: Role
 }
+
+// Invitation interface (matches invitations table)
+export interface Invitation {
+  id: string
+  email: string
+  org_id: string
+  invited_by: string
+  role_id: string | null
+  accepted_at: string | null
+  expiry_at: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+// Extended invitation with user and role details
+export interface InvitationWithDetails extends Invitation {
+  invited_by_user: {
+    id: string
+    email: string
+  }
+  role: Role | null
+}

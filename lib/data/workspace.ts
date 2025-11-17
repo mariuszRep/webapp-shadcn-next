@@ -38,6 +38,8 @@ export const getOrganization = cache(async (organizationId: string, userId: stri
 export const getWorkspace = cache(async (workspaceId: string, organizationId: string, userId: string): Promise<Workspace> => {
   const supabase = await createClient()
 
+  // Rely on RLS to filter workspaces based on has_permission('workspace', 'read', organization_id, id)
+  // RLS validates organization membership and workspace permissions
   const { data, error } = await supabase
     .from('workspaces')
     .select('*')
@@ -46,11 +48,6 @@ export const getWorkspace = cache(async (workspaceId: string, organizationId: st
     .single()
 
   if (error || !data) {
-    notFound()
-  }
-
-  // Validate user has access
-  if (data.created_by !== userId && data.updated_by !== userId) {
     notFound()
   }
 
@@ -78,12 +75,12 @@ export const getPersonalWorkspace = cache(async (userId: string): Promise<{ orga
 
   const organizationId = membership.org_id
 
-  // Find ANY workspace in that organization created by this user
+  // Find ANY workspace in that organization that the user has access to
+  // RLS policies will filter based on has_permission('workspace', 'read', organization_id, id)
   const { data: workspace, error: workspaceError } = await supabase
     .from('workspaces')
     .select('id')
     .eq('organization_id', organizationId)
-    .eq('created_by', userId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(1)
@@ -104,11 +101,13 @@ export const getPersonalWorkspace = cache(async (userId: string): Promise<{ orga
 export async function getFirstWorkspaceForOrg(organizationId: string, userId: string): Promise<string> {
   const supabase = await createClient()
 
+  // Rely on RLS to filter workspaces based on permissions
+  // RLS validates organization membership and workspace permissions
   const { data: workspace, error } = await supabase
     .from('workspaces')
     .select('id')
     .eq('organization_id', organizationId)
-    .or(`created_by.eq.${userId},updated_by.eq.${userId}`)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(1)
     .single()

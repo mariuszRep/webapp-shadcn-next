@@ -42,22 +42,28 @@ export async function getOrganizationSettings(orgId: string): Promise<{
     let members: OrganizationMemberWithUser[] | undefined
     if (canManageMembers) {
       const { data: membersData, error: membersError } = await supabase
-        .from('organization_members')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            email
-          )
-        `)
+        .from('organization_members_with_users')
+        .select('*')
         .eq('org_id', orgId)
-        .is('deleted_at', null)
         .order('created_at', { ascending: true })
 
       if (membersError) {
         console.error('Error fetching members:', membersError)
       } else {
-        members = membersData as any
+        // Transform view data to match expected format
+        members = membersData?.map(row => ({
+          org_id: row.org_id,
+          user_id: row.user_id,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          created_by: row.created_by,
+          updated_by: row.updated_by,
+          deleted_at: row.deleted_at,
+          user: {
+            id: row.user_id,
+            email: row.user_email,
+          },
+        })) as any
       }
     }
 
