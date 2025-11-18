@@ -10,7 +10,7 @@ import type {
   PermissionAction,
   Permission,
   Role,
-  WorkspaceMemberView
+  UsersPermissionsView
 } from '@/lib/types/database'
 
 // Re-export schemas for convenience (but they're defined in lib/schemas.ts for client access)
@@ -533,9 +533,10 @@ export async function getOrgMembers(org_id: string): Promise<{
 
     // Fetch organization members from materialized view
     const { data: members, error } = await supabase
-      .from('organization_members_view')
+      .from('users_permissions')
       .select('*')
       .eq('org_id', org_id)
+      .eq('object_type', 'organization')
 
     if (error) {
       console.error('Error fetching organization members:', error)
@@ -567,9 +568,12 @@ export async function getOrgMembers(org_id: string): Promise<{
 
     // Combine member data with user details
     const membersWithDetails = members.map(m => ({
-      ...m,
-      email: userDetailsMap[m.user_id]?.email,
-      name: userDetailsMap[m.user_id]?.name
+      org_id: m.object_id!,
+      user_id: m.user_id!,
+      role_id: m.role_id!,
+      role_name: m.role_name!,
+      email: userDetailsMap[m.user_id!]?.email,
+      name: userDetailsMap[m.user_id!]?.name
     }))
 
     return { success: true, members: membersWithDetails }
@@ -585,7 +589,12 @@ export async function getOrgMembers(org_id: string): Promise<{
 
 export async function getWorkspaceMembers(workspace_id: string): Promise<{
   success: boolean
-  members?: WorkspaceMemberView[]
+  members?: Array<{
+    workspace_id: string
+    user_id: string
+    role_id: string
+    role_name: string
+  }>
   error?: string
 }> {
   try {
@@ -600,9 +609,10 @@ export async function getWorkspaceMembers(workspace_id: string): Promise<{
 
     // Fetch workspace members from materialized view
     const { data, error } = await supabase
-      .from('workspace_members_view')
+      .from('users_permissions')
       .select('*')
-      .eq('workspace_id', workspace_id)
+      .eq('object_id', workspace_id)
+      .eq('object_type', 'workspace')
       .order('user_id', { ascending: true })
 
     if (error) {
@@ -610,7 +620,15 @@ export async function getWorkspaceMembers(workspace_id: string): Promise<{
       return { success: false, error: 'Failed to fetch workspace members' }
     }
 
-    return { success: true, members: data || [] }
+    // Map the results to the expected format
+    const members = data?.map(m => ({
+      workspace_id: m.object_id!,
+      user_id: m.user_id!,
+      role_id: m.role_id!,
+      role_name: m.role_name!
+    })) || []
+
+    return { success: true, members }
   } catch (error) {
     console.error('Unexpected error fetching workspace members:', error)
     return { success: false, error: 'An unexpected error occurred' }
@@ -719,15 +737,16 @@ export async function getUserOrganizations(): Promise<{
 
     // Get organizations where user has owner/admin role
     const { data: orgMemberships } = await supabase
-      .from('organization_members_view')
-      .select('org_id')
+      .from('users_permissions')
+      .select('object_id')
       .eq('user_id', user.id)
+      .eq('object_type', 'organization')
 
     if (!orgMemberships || orgMemberships.length === 0) {
       return { success: true, organizations: [] }
     }
 
-    const orgIds = orgMemberships.map(m => m.org_id)
+    const orgIds = orgMemberships.map(m => m.object_id!)
 
     // Fetch organization details
     const { data, error } = await supabase

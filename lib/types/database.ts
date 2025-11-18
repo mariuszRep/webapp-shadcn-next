@@ -275,23 +275,6 @@ export type Database = {
       }
     }
     Views: {
-      organization_members_view: {
-        Row: {
-          org_id: string | null
-          role_id: string | null
-          role_name: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "permissions_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       users: {
         Row: {
           email: string | null
@@ -310,12 +293,15 @@ export type Database = {
         }
         Relationships: []
       }
-      workspace_members_view: {
+      users_permissions: {
         Row: {
+          org_id: string | null
+          object_type: string | null
+          object_id: string | null
+          user_id: string | null
           role_id: string | null
           role_name: string | null
-          user_id: string | null
-          workspace_id: string | null
+          role_permissions: Json | null
         }
         Relationships: [
           {
@@ -471,5 +457,4 @@ export type Organization = Database['public']['Tables']['organizations']['Row']
 export type Workspace = Database['public']['Tables']['workspaces']['Row']
 export type Permission = Database['public']['Tables']['permissions']['Row']
 export type Role = Database['public']['Tables']['roles']['Row']
-export type OrganizationMemberView = Database['public']['Tables']['organization_members_view']['Row']
-export type WorkspaceMemberView = Database['public']['Tables']['workspace_members_view']['Row']
+export type UsersPermissionsView = Database['public']['Views']['users_permissions']['Row']
