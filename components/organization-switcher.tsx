@@ -1,17 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Building2, Check, Pencil, Trash2, Plus } from 'lucide-react'
+import { Building2, ChevronsUpDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +15,20 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Separator } from '@/components/ui/separator'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
 import { toast } from 'sonner'
 import { createOrganization, updateOrganization, deleteOrganization } from '@/lib/actions/organization-actions'
 import type { Organization } from '@/lib/types/database'
@@ -43,8 +46,8 @@ export function OrganizationSwitcher({
   onSelectOrg,
   onOrganizationsChange,
 }: OrganizationSwitcherProps) {
-  const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [tempSelectedOrgId, setTempSelectedOrgId] = React.useState<string | null>(selectedOrgId)
+  const { isMobile } = useSidebar()
+  const [menuOpen, setMenuOpen] = React.useState(false)
   const [createMode, setCreateMode] = React.useState(false)
   const [editingOrgId, setEditingOrgId] = React.useState<string | null>(null)
   const [deleteConfirmOrgId, setDeleteConfirmOrgId] = React.useState<string | null>(null)
@@ -53,17 +56,7 @@ export function OrganizationSwitcher({
 
   const selectedOrg = organizations.find(org => org.id === selectedOrgId)
 
-  React.useEffect(() => {
-    setTempSelectedOrgId(selectedOrgId)
-  }, [selectedOrgId])
-
-  const handleConfirmSelection = () => {
-    if (tempSelectedOrgId) {
-      onSelectOrg(tempSelectedOrgId)
-      setDialogOpen(false)
-      toast.success('Organization switched successfully')
-    }
-  }
+  const closeMenu = () => setMenuOpen(false)
 
   const handleCreateOrg = async () => {
     if (!orgName.trim()) {
@@ -81,6 +74,7 @@ export function OrganizationSwitcher({
       setCreateMode(false)
       onOrganizationsChange()
       onSelectOrg(result.organization.id)
+      closeMenu()
     } else {
       toast.error(result.error || 'Failed to create organization')
     }
@@ -128,6 +122,17 @@ export function OrganizationSwitcher({
     }
   }
 
+  const handleSelectOrg = (orgId: string) => {
+    if (orgId === selectedOrgId) {
+      closeMenu()
+      return
+    }
+
+    onSelectOrg(orgId)
+    closeMenu()
+    toast.success('Organization switched successfully')
+  }
+
   const startEdit = (org: Organization) => {
     setEditingOrgId(org.id)
     setOrgName(org.name)
@@ -152,145 +157,161 @@ export function OrganizationSwitcher({
 
   return (
     <>
-      <div className="flex items-center justify-between pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <Building2 className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Organization</span>
-            <span className="font-semibold">
-              {selectedOrg?.name || 'No organization selected'}
-            </span>
-          </div>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline">Switch</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Manage Organizations</DialogTitle>
-              <DialogDescription>
-                Select an organization or manage your organizations below.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              {/* Create New Organization */}
-              {createMode ? (
-                <div className="space-y-3 rounded-lg border p-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-org-name">Organization Name</Label>
-                    <Input
-                      id="new-org-name"
-                      value={orgName}
-                      onChange={(e) => setOrgName(e.target.value)}
-                      placeholder="Enter organization name"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleCreateOrg()
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleCreateOrg} disabled={loading} size="sm">
-                      Create
-                    </Button>
-                    <Button onClick={cancelCreate} variant="outline" size="sm">
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button onClick={startCreate} variant="outline" className="w-full" size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create New Organization
-                </Button>
-              )}
-
-              <Separator />
-
-              {/* Organization List */}
-              <RadioGroup value={tempSelectedOrgId || ''} onValueChange={setTempSelectedOrgId}>
-                <div className="space-y-2">
-                  {organizations.map((org) => (
-                    <div key={org.id}>
-                      {editingOrgId === org.id ? (
-                        <div className="space-y-3 rounded-lg border p-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="edit-org-name">Organization Name</Label>
-                            <Input
-                              id="edit-org-name"
-                              value={orgName}
-                              onChange={(e) => setOrgName(e.target.value)}
-                              placeholder="Enter organization name"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleUpdateOrg(org.id)
-                                }
-                              }}
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button onClick={() => handleUpdateOrg(org.id)} disabled={loading} size="sm">
-                              Save
-                            </Button>
-                            <Button onClick={cancelEdit} variant="outline" size="sm">
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent">
-                          <div className="flex items-center gap-3 flex-1">
-                            <RadioGroupItem value={org.id} id={org.id} />
-                            <Label htmlFor={org.id} className="flex-1 cursor-pointer font-normal">
-                              {org.name}
-                              {selectedOrgId === org.id && (
-                                <span className="ml-2 text-xs text-muted-foreground">(current)</span>
-                              )}
-                            </Label>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => startEdit(org)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => setDeleteConfirmOrgId(org.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </RadioGroup>
-            </div>
-
-            <DialogFooter>
-              <Button
-                onClick={handleConfirmSelection}
-                disabled={!tempSelectedOrgId || tempSelectedOrgId === selectedOrgId}
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
-                <Check className="mr-2 h-4 w-4" />
-                Confirm Selection
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-lg">
+                  <Building2 className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">
+                    {selectedOrg?.name || 'Select an organization'}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">Organization</span>
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-(--radix-dropdown-menu-trigger-width) min-w-72 rounded-lg p-0"
+              sideOffset={4}
+              align="start"
+              side={isMobile ? 'bottom' : 'right'}
+            >
+              <DropdownMenuLabel className="text-muted-foreground text-xs">
+                Manage Organizations
+              </DropdownMenuLabel>
+              <div className="space-y-3 p-3">
+                {createMode ? (
+                  <div className="space-y-3 rounded-lg border p-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-org-name">Organization Name</Label>
+                      <Input
+                        id="new-org-name"
+                        value={orgName}
+                        autoFocus
+                        onChange={(e) => setOrgName(e.target.value)}
+                        placeholder="Enter organization name"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCreateOrg()
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleCreateOrg} disabled={loading} size="sm">
+                        Create
+                      </Button>
+                      <Button onClick={cancelCreate} variant="outline" size="sm">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={startCreate}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center"
+                  >
+                    <Plus className="mr-2 size-4" />
+                    Create New Organization
+                  </Button>
+                )}
+
+                <Separator />
+
+                <div className="space-y-2">
+                  {organizations.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground">
+                      No organizations yet. Create your first one to get started.
+                    </p>
+                  ) : (
+                    organizations.map((org) => (
+                      <div key={org.id}>
+                        {editingOrgId === org.id ? (
+                          <div className="space-y-3 rounded-lg border p-3">
+                            <div className="space-y-2">
+                              <Label htmlFor={`edit-org-${org.id}`}>Organization Name</Label>
+                              <Input
+                                id={`edit-org-${org.id}`}
+                                value={orgName}
+                                onChange={(e) => setOrgName(e.target.value)}
+                                placeholder="Enter organization name"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleUpdateOrg(org.id)
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button onClick={() => handleUpdateOrg(org.id)} disabled={loading} size="sm">
+                                Save
+                              </Button>
+                              <Button onClick={cancelEdit} variant="outline" size="sm">
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent">
+                            <button
+                              className="flex-1 text-left"
+                              onClick={() => handleSelectOrg(org.id)}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">{org.name}</span>
+                                {selectedOrgId === org.id && (
+                                  <span className="text-xs text-muted-foreground">Current</span>
+                                )}
+                              </div>
+                            </button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  startEdit(org)
+                                }}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-destructive hover:text-destructive"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  setDeleteConfirmOrgId(org.id)
+                                }}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <p className="px-3 pb-3 text-center text-xs text-muted-foreground">
+                Select an organization to manage settings
+              </p>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteConfirmOrgId} onOpenChange={() => setDeleteConfirmOrgId(null)}>

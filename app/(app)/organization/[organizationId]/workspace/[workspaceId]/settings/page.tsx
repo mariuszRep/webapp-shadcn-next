@@ -5,6 +5,17 @@ import { getUserOrganizations } from '@/lib/actions/organization-actions'
 import { SettingsClient } from '@/components/settings-client'
 import { Skeleton } from '@/components/ui/skeleton'
 
+function SettingsError({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="w-full max-w-lg rounded-xl border bg-card p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold">Unable to load settings</h1>
+        <p className="text-muted-foreground mt-3 text-sm">{message}</p>
+      </div>
+    </div>
+  )
+}
+
 async function SettingsContent() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,51 +27,29 @@ async function SettingsContent() {
   const result = await getUserOrganizations()
 
   if (!result.success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-2xl space-y-6">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your account and organization preferences.
-            </p>
-          </div>
-          <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-sm text-destructive text-center">
-              {result.error || 'Failed to load organizations'}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
+    return <SettingsError message={result.error || 'Failed to load organizations'} />
+  }
+
+  const userData = {
+    name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+    email: user.email || '',
+    avatar: user.user_metadata?.avatar_url || '',
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-4xl space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your account and organization preferences.
-          </p>
-        </div>
-        <SettingsClient organizations={result.organizations || []} />
-      </div>
-    </div>
+    <SettingsClient
+      organizations={result.organizations || []}
+      user={userData}
+    />
   )
 }
 
 function SettingsLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-4xl space-y-6">
-        <div className="text-center">
-          <Skeleton className="h-9 w-48 mx-auto" />
-          <Skeleton className="mt-2 h-5 w-96 mx-auto" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-64 w-full" />
-        </div>
+    <div className="flex min-h-screen bg-background">
+      <div className="flex w-full flex-col gap-4 p-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-[400px] w-full" />
       </div>
     </div>
   )
