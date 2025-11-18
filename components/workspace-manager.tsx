@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Folder, Plus, Pencil, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Folder, Plus, Pencil, Trash2, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -40,6 +41,7 @@ interface WorkspaceManagerProps {
 }
 
 export function WorkspaceManager({ organizationId, organizationName }: WorkspaceManagerProps) {
+  const router = useRouter()
   const [workspaces, setWorkspaces] = React.useState<Workspace[]>([])
   const [loading, setLoading] = React.useState(true)
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -183,13 +185,20 @@ export function WorkspaceManager({ organizationId, organizationName }: Workspace
                 <CardContent>
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       className="flex-1"
+                      onClick={() => router.push(`/organization/${organizationId}/workspace/${workspace.id}`)}
+                    >
+                      <ArrowRight className="mr-2 h-3 w-3" />
+                      Go to Workspace
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleOpenDialog(workspace)}
                     >
-                      <Pencil className="mr-2 h-3 w-3" />
-                      Edit
+                      <Pencil className="h-3 w-3" />
                     </Button>
                     <Button
                       variant="outline"
