@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { ReactNode } from 'react'
 import { OrganizationWorkspaceProvider } from '@/components/providers/organization-workspace-provider'
 import { createClient } from '@/lib/supabase/server'
-import { getOrganization, getWorkspace } from '@/lib/data/workspace'
+import { getOrganization, getWorkspace } from '@/lib/actions/workspace'
 
 interface WorkspaceLayoutProps {
   children: ReactNode

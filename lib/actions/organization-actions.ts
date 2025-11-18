@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Organization } from '@/lib/types/database'
-import { getFirstWorkspaceForOrg } from '@/lib/data/workspace'
+import { getFirstWorkspaceForOrg } from '@/lib/actions/workspace'
 
 export async function createOrganization(name: string): Promise<{ success: boolean; organization?: Organization; error?: string }> {
   try {

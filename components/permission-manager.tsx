@@ -79,9 +79,13 @@ import {
   createRole,
   updateRole,
   deleteRole,
-} from '@/lib/actions/permission-actions'
-import { usePermissionStore } from '@/lib/stores/permissionStore'
-import { addPermissionSchema, roleFormSchema, updateRoleSchema } from '@/lib/validations/permission-schemas'
+} from '@/lib/actions/permissions'
+import {
+  addPermissionSchema,
+  roleFormSchema,
+  updateRoleSchema,
+} from '@/lib/schemas'
+import { usePermissionStore } from '@/lib/stores/permission-store'
 import type { PermissionAction, ObjectType, Role } from '@/lib/types/database'
 
 interface PermissionManagerProps {

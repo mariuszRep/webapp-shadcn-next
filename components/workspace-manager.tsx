@@ -31,7 +31,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { createWorkspace, updateWorkspace, deleteWorkspace, getOrganizationWorkspaces } from '@/lib/actions/workspace-actions'
+import { createWorkspace, updateWorkspace, deleteWorkspace, getOrganizationWorkspaces } from '@/lib/actions/workspace'
 import type { Workspace } from '@/lib/types/database'
 
 interface WorkspaceManagerProps {

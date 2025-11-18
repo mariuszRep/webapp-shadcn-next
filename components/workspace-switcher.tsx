@@ -31,7 +31,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import type { Workspace } from "@/lib/types/database"
-import { createWorkspace } from "@/lib/actions/workspace-actions"
+import { createWorkspace } from "@/lib/actions/workspace"
 
 interface WorkspaceSwitcherProps {
   workspaces: Workspace[]

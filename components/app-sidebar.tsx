@@ -23,7 +23,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useWorkspace } from "@/hooks/use-workspace"
-import { getOrganizationWorkspaces } from "@/lib/actions/workspace-actions"
+import { getOrganizationWorkspaces } from "@/lib/actions/workspace"
 import type { Workspace } from "@/lib/types/database"
 
 // This is sample data.
