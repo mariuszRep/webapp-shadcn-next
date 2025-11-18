@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { RoleService, type CreateRoleInput, type UpdateRoleInput } from '@/lib/services/role-service'
+import { handleRLSError } from '@/lib/utils/rls-errors'
 import type {
   PrincipalType,
   ObjectType,
@@ -57,36 +59,12 @@ export async function assignRole(params: AssignRoleParams): Promise<{
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Validate principal_type (only 'user' supported in Phase 1)
+    // Business logic validation only
     if (params.principal_type !== 'user') {
       return { success: false, error: 'Only user principal type is currently supported' }
     }
 
-    // Check if role exists
-    const { data: role, error: roleError } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('id', params.role_id)
-      .is('deleted_at', null)
-      .single()
-
-    if (roleError || !role) {
-      return { success: false, error: 'Role not found' }
-    }
-
-    // Check if principal is a member of the organization
-    const { data: memberCheck } = await supabase
-      .from('organization_members_view')
-      .select('user_id')
-      .eq('org_id', params.org_id)
-      .eq('user_id', params.principal_id)
-      .single()
-
-    if (!memberCheck) {
-      return { success: false, error: 'Principal is not a member of this organization' }
-    }
-
-    // Check for existing permission (avoid duplicates)
+    // Check for duplicate permission (better UX than constraint error)
     const { data: existingPermission } = await supabase
       .from('permissions')
       .select('id')
@@ -97,13 +75,13 @@ export async function assignRole(params: AssignRoleParams): Promise<{
       .eq('object_type', params.object_type)
       .eq('object_id', params.object_id)
       .is('deleted_at', null)
-      .single()
+      .maybeSingle()
 
     if (existingPermission) {
-      return { success: false, error: 'Permission already exists' }
+      return { success: false, error: 'This permission already exists' }
     }
 
-    // Create permission
+    // Create permission - RLS handles authorization
     const { data, error } = await supabase
       .from('permissions')
       .insert({
@@ -121,16 +99,16 @@ export async function assignRole(params: AssignRoleParams): Promise<{
 
     if (error) {
       console.error('Error creating permission:', error)
-      return { success: false, error: 'Failed to assign role' }
+      return { success: false, error: handleRLSError(error) }
     }
 
-    // Revalidate relevant paths
     revalidatePath('/settings')
+    revalidatePath(`/organization/${params.org_id}/settings`)
 
     return { success: true, permission: data }
   } catch (error) {
     console.error('Unexpected error assigning role:', error)
-    return { success: false, error: 'An unexpected error occurred' }
+    return { success: false, error: handleRLSError(error) }
   }
 }
 
@@ -605,5 +583,142 @@ export async function getOrganizationWorkspaces(org_id: string): Promise<{
   } catch (error) {
     console.error('Unexpected error fetching workspaces:', error)
     return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+// =====================================================
+// ROLE MANAGEMENT
+// =====================================================
+
+export async function createRole(data: CreateRoleInput): Promise<{
+  success: boolean
+  role?: Role
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Create role - RLS handles authorization
+    const roleService = new RoleService(supabase)
+    const result = await roleService.createRole(data)
+
+    if (result.success) {
+      revalidatePath('/settings')
+      revalidatePath(`/organization/${data.org_id}/settings`)
+      return result
+    }
+
+    return { success: false, error: handleRLSError(result.error) }
+  } catch (error) {
+    console.error('Unexpected error creating role:', error)
+    return { success: false, error: handleRLSError(error) }
+  }
+}
+
+export async function updateRole(id: string, data: UpdateRoleInput): Promise<{
+  success: boolean
+  role?: Role
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Get role org_id for path revalidation
+    const { data: role } = await supabase
+      .from('roles')
+      .select('org_id')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single()
+
+    // Update role - RLS handles authorization
+    const roleService = new RoleService(supabase)
+    const result = await roleService.updateRole(id, data)
+
+    if (result.success && role?.org_id) {
+      revalidatePath('/settings')
+      revalidatePath(`/organization/${role.org_id}/settings`)
+      return result
+    }
+
+    if (!result.success) {
+      return { success: false, error: handleRLSError(result.error) }
+    }
+
+    return result
+  } catch (error) {
+    console.error('Unexpected error updating role:', error)
+    return { success: false, error: handleRLSError(error) }
+  }
+}
+
+export async function deleteRole(id: string): Promise<{
+  success: boolean
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Get role org_id for path revalidation
+    const { data: role } = await supabase
+      .from('roles')
+      .select('org_id')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single()
+
+    // Check if role is in use (business logic constraint, not authorization)
+    const { data: permissionsCheck, error: checkError } = await supabase
+      .from('permissions')
+      .select('id')
+      .eq('role_id', id)
+      .is('deleted_at', null)
+      .limit(1)
+
+    if (checkError) {
+      return { success: false, error: handleRLSError(checkError) }
+    }
+
+    if (permissionsCheck && permissionsCheck.length > 0) {
+      return { success: false, error: 'Cannot delete role that is currently assigned to users' }
+    }
+
+    // Delete role - RLS handles authorization
+    const roleService = new RoleService(supabase)
+    const result = await roleService.deleteRole(id)
+
+    if (result.success && role?.org_id) {
+      revalidatePath('/settings')
+      revalidatePath(`/organization/${role.org_id}/settings`)
+      return result
+    }
+
+    if (!result.success) {
+      return { success: false, error: handleRLSError(result.error) }
+    }
+
+    return result
+  } catch (error) {
+    return { success: false, error: handleRLSError(error) }
   }
 }

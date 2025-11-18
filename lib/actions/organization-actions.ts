@@ -41,8 +41,11 @@ export async function createOrganization(name: string): Promise<{ success: boole
       return { success: false, error: 'Failed to create organization' }
     }
 
-    // Revalidate settings page
+    // Revalidate settings pages
     revalidatePath('/settings')
+    if (data?.id) {
+      revalidatePath(`/organization/${data.id}/settings`)
+    }
 
     return { success: true, organization: data }
   } catch (error) {
@@ -116,8 +119,9 @@ export async function updateOrganization(organizationId: string, name: string): 
       return { success: false, error: 'Failed to update organization' }
     }
 
-    // Revalidate settings page
+    // Revalidate settings pages
     revalidatePath('/settings')
+    revalidatePath(`/organization/${organizationId}/settings`)
 
     return { success: true, organization: data }
   } catch (error) {
@@ -137,15 +141,14 @@ export async function deleteOrganization(organizationId: string): Promise<{ succ
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Check if this is a personal organization
-    const { data: org } = await supabase
+    // Check if this is the user's only organization
+    const { data: orgs } = await supabase
       .from('organizations')
-      .select('name')
-      .eq('id', organizationId)
-      .single()
+      .select('id')
+      .eq('created_by', user.id)
 
-    if (org && org.name === 'Personal') {
-      return { success: false, error: 'Cannot delete personal organization' }
+    if (orgs && orgs.length === 1 && orgs[0].id === organizationId) {
+      return { success: false, error: 'Cannot delete your only organization' }
     }
 
     // Delete organization (RLS will handle permission checking)
@@ -159,8 +162,9 @@ export async function deleteOrganization(organizationId: string): Promise<{ succ
       return { success: false, error: 'Failed to delete organization' }
     }
 
-    // Revalidate settings page
+    // Revalidate settings pages
     revalidatePath('/settings')
+    revalidatePath(`/organization/${organizationId}/settings`)
 
     return { success: true }
   } catch (error) {

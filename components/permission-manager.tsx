@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -13,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Building2, FolderKanban, Shield, Trash2, Plus, Search, ChevronDown, MoreHorizontal } from 'lucide-react'
+import { Building2, FolderKanban, Shield, Trash2, Plus, Search, ChevronDown, MoreHorizontal, Pencil } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +24,15 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -65,7 +76,12 @@ import {
   getAllRoles,
   getUserOrganizations,
   getOrganizationWorkspaces,
+  createRole,
+  updateRole,
+  deleteRole,
 } from '@/lib/actions/permission-actions'
+import { usePermissionStore } from '@/lib/stores/permissionStore'
+import { addPermissionSchema, roleFormSchema, updateRoleSchema } from '@/lib/validations/permission-schemas'
 import type { PermissionAction, ObjectType, Role } from '@/lib/types/database'
 
 interface PermissionManagerProps {
@@ -101,20 +117,50 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
   const [workspaces, setWorkspaces] = useState<Array<{ id: string; name: string }>>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteRoleDialogOpen, setDeleteRoleDialogOpen] = useState(false)
   const [permissionToDelete, setPermissionToDelete] = useState<PermissionWithDetails | null>(null)
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null)
+  const [activeTab, setActiveTab] = useState('permissions')
 
-  // Form state
+  // Zustand store for dialog state
+  const {
+    addPermissionOpen,
+    addRoleOpen,
+    editRoleOpen,
+    selectedRole,
+    setAddPermissionOpen,
+    setAddRoleOpen,
+    setEditRoleOpen,
+    setSelectedRole,
+  } = usePermissionStore()
+
+  // Form state for Add Permission
   const [selectedPrincipalId, setSelectedPrincipalId] = useState('')
   const [selectedRoleId, setSelectedRoleId] = useState('')
   const [selectedObjectType, setSelectedObjectType] = useState<ObjectType>('organization')
   const [selectedObjectId, setSelectedObjectId] = useState<string>('all')
   const [submitting, setSubmitting] = useState(false)
 
+  // Form for Add/Edit Role
+  const roleForm = useForm({
+    resolver: zodResolver(editRoleOpen ? updateRoleSchema : roleFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      permissions: [] as PermissionAction[],
+    },
+  })
+
   // Table state
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
+
+  // Role table state
+  const [roleSorting, setRoleSorting] = useState<SortingState>([])
+  const [roleFilters, setRoleFilters] = useState<ColumnFiltersState>([])
+  const [roleRowSelection, setRoleRowSelection] = useState({})
 
   // Deduplicate members by user_id for the user selection dropdown
   const uniqueMembers = members.reduce((acc, member) => {
@@ -134,6 +180,23 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
       loadWorkspaces()
     }
   }, [selectedObjectType, orgId])
+
+  // Pre-fill form when editing role
+  useEffect(() => {
+    if (editRoleOpen && selectedRole) {
+      roleForm.reset({
+        name: selectedRole.name,
+        description: selectedRole.description || '',
+        permissions: selectedRole.permissions,
+      })
+    } else if (!editRoleOpen) {
+      roleForm.reset({
+        name: '',
+        description: '',
+        permissions: [],
+      })
+    }
+  }, [editRoleOpen, selectedRole])
 
   async function loadData() {
     setLoading(true)
@@ -205,6 +268,7 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
         setSelectedRoleId('')
         setSelectedObjectType('organization')
         setSelectedObjectId('all')
+        setAddPermissionOpen(false)
       } else {
         toast.error(result.error || 'Failed to assign permission')
       }
@@ -256,6 +320,81 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
     }
   }
 
+  async function handleCreateRole(data: any) {
+    console.log('handleCreateRole called with data:', data)
+    console.log('orgId:', orgId)
+
+    setSubmitting(true)
+    try {
+      const payload = {
+        ...data,
+        org_id: orgId,
+      }
+      console.log('Calling createRole with payload:', payload)
+
+      const result = await createRole(payload)
+      console.log('createRole result:', result)
+
+      if (result.success) {
+        toast.success('Role created successfully')
+        roleForm.reset()
+        setAddRoleOpen(false)
+        loadData()
+      } else {
+        console.error('Create role failed:', result.error)
+        toast.error(result.error || 'Failed to create role')
+      }
+    } catch (error) {
+      console.error('Error creating role:', error)
+      toast.error('An unexpected error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleUpdateRole(data: any) {
+    if (!selectedRole) return
+
+    setSubmitting(true)
+    try {
+      const result = await updateRole(selectedRole.id, data)
+
+      if (result.success) {
+        toast.success('Role updated successfully')
+        roleForm.reset()
+        setEditRoleOpen(false)
+        setSelectedRole(null)
+        loadData()
+      } else {
+        toast.error(result.error || 'Failed to update role')
+      }
+    } catch (error) {
+      console.error('Error updating role:', error)
+      toast.error('An unexpected error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDeleteRole() {
+    if (!roleToDelete) return
+
+    try {
+      const result = await deleteRole(roleToDelete.id)
+      if (result.success) {
+        toast.success('Role deleted successfully')
+        setDeleteRoleDialogOpen(false)
+        setRoleToDelete(null)
+        loadData()
+      } else {
+        toast.error(result.error || 'Failed to delete role')
+      }
+    } catch (error) {
+      console.error('Error deleting role:', error)
+      toast.error('An unexpected error occurred')
+    }
+  }
+
   const getActionBadgeVariant = (action: PermissionAction): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (action) {
       case 'select': return 'default'
@@ -295,8 +434,8 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
     return objectId
   }
 
-  // Define columns
-  const columns: ColumnDef<PermissionWithDetails>[] = [
+  // Define permissions columns
+  const permissionsColumns: ColumnDef<PermissionWithDetails>[] = [
     {
       id: 'select',
       header: ({ table }) => (
@@ -442,9 +581,121 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
     },
   ]
 
+  // Define roles columns
+  const rolesColumns: ColumnDef<Role>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'name',
+      header: 'Name',
+      cell: ({ row }) => {
+        const role = row.original
+        return (
+          <div className="flex flex-col">
+            <span className="text-sm font-medium capitalize">{role.name}</span>
+            {role.description && (
+              <span className="text-xs text-muted-foreground line-clamp-2">{role.description}</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: 'permissions',
+      header: 'Permissions',
+      cell: ({ row }) => {
+        const role = row.original
+        return (
+          <div className="flex flex-wrap gap-1">
+            {role.permissions.map((action) => (
+              <Badge key={action} variant={getActionBadgeVariant(action)} className="text-xs">
+                {action}
+              </Badge>
+            ))}
+          </div>
+        )
+      },
+    },
+    {
+      id: 'scope',
+      header: 'Scope',
+      cell: ({ row }) => {
+        const role = row.original
+        return (
+          <Badge variant="outline" className="text-xs">
+            {role.org_id ? 'Organization' : 'System'}
+          </Badge>
+        )
+      },
+    },
+    {
+      id: 'row_actions',
+      enableHiding: false,
+      cell: ({ row }) => {
+        const role = row.original
+        // Don't allow editing system roles
+        if (!role.org_id) return null
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedRole(role)
+                  setEditRoleOpen(true)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit role
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setRoleToDelete(role)
+                  setDeleteRoleDialogOpen(true)
+                }}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete role
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    },
+  ]
+
   const table = useReactTable({
     data: permissions,
-    columns,
+    columns: permissionsColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -461,56 +712,294 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
     },
   })
 
+  const roleTable = useReactTable({
+    data: roles,
+    columns: rolesColumns,
+    onSortingChange: setRoleSorting,
+    onColumnFiltersChange: setRoleFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onRowSelectionChange: setRoleRowSelection,
+    state: {
+      sorting: roleSorting,
+      columnFilters: roleFilters,
+      rowSelection: roleRowSelection,
+    },
+  })
+
   return (
     <div className="space-y-6">
-      {/* Roles Display Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Available Roles
-          </CardTitle>
-          <CardDescription>
-            System and organization roles that can be assigned
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {roles.map((role) => (
-              <Card key={role.id} className="border-2">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium capitalize">{role.name}</CardTitle>
-                  <CardDescription className="text-xs line-clamp-2">
-                    {role.description || 'No description'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-1">
-                    {role.permissions.map((action) => (
-                      <Badge key={action} variant={getActionBadgeVariant(action)} className="text-xs">
-                        {action}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Permissions
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Roles
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Add Permission Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Add New Permission
-          </CardTitle>
-          <CardDescription>
-            Assign a role to a user for an organization or workspace
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        {/* Permissions Tab */}
+        <TabsContent value="permissions" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Manage Permissions</h3>
+              <p className="text-sm text-muted-foreground">
+                Assign roles to users for organization-level or workspace-level access
+              </p>
+            </div>
+            <Button onClick={() => setAddPermissionOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Permission
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Filter by email..."
+                  value={(table.getColumn('user_email')?.getFilterValue() as string) ?? ''}
+                  onChange={(event) =>
+                    table.getColumn('user_email')?.setFilterValue(event.target.value)
+                  }
+                  className="max-w-sm"
+                />
+                {table.getFilteredSelectedRowModel().rows.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelected}
+                  >
+                    Revoke ({table.getFilteredSelectedRowModel().rows.length})
+                  </Button>
+                )}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="ml-auto">
+                    Columns <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) =>
+                            column.toggleVisibility(!!value)
+                          }
+                        >
+                          {column.id}
+                        </DropdownMenuCheckboxItem>
+                      )
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        )
+                      })}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && 'selected'}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={permissionsColumns.length}
+                        className="h-24 text-center"
+                      >
+                        {loading ? 'Loading...' : 'No results.'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 py-4">
+              <div className="flex-1 text-sm text-muted-foreground">
+                {table.getFilteredSelectedRowModel().rows.length} of{' '}
+                {table.getFilteredRowModel().rows.length} row(s) selected.
+              </div>
+              <div className="space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Roles Tab */}
+        <TabsContent value="roles" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Manage Roles</h3>
+              <p className="text-sm text-muted-foreground">
+                Create and manage roles that define permission sets
+              </p>
+            </div>
+            <Button onClick={() => setAddRoleOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Role
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Filter by name..."
+                value={(roleTable.getColumn('name')?.getFilterValue() as string) ?? ''}
+                onChange={(event) =>
+                  roleTable.getColumn('name')?.setFilterValue(event.target.value)
+                }
+                className="max-w-sm"
+              />
+            </div>
+
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  {roleTable.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        )
+                      })}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {roleTable.getRowModel().rows?.length ? (
+                    roleTable.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && 'selected'}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={rolesColumns.length}
+                        className="h-24 text-center"
+                      >
+                        {loading ? 'Loading...' : 'No roles found.'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 py-4">
+              <div className="flex-1 text-sm text-muted-foreground">
+                {roleTable.getFilteredSelectedRowModel().rows.length} of{' '}
+                {roleTable.getFilteredRowModel().rows.length} row(s) selected.
+              </div>
+              <div className="space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => roleTable.previousPage()}
+                  disabled={!roleTable.getCanPreviousPage()}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => roleTable.nextPage()}
+                  disabled={!roleTable.getCanNextPage()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Permission Dialog */}
+      <Dialog open={addPermissionOpen} onOpenChange={setAddPermissionOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Permission</DialogTitle>
+            <DialogDescription>
+              Assign a role to a user for an organization or workspace
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="principal">User</Label>
@@ -597,158 +1086,113 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
             </div>
           </div>
 
-          <div className="mt-6 flex gap-2">
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddPermissionOpen(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleAssignRole}
               disabled={submitting || !selectedPrincipalId || !selectedRoleId}
             >
               {submitting ? 'Adding...' : 'Add Permission'}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedPrincipalId('')
-                setSelectedRoleId('')
-                setSelectedObjectType('organization')
-                setSelectedObjectId('all')
-              }}
-            >
-              Reset
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <Separator />
-
-      {/* Permissions Data Table */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Filter by email..."
-              value={(table.getColumn('user_email')?.getFilterValue() as string) ?? ''}
-              onChange={(event) =>
-                table.getColumn('user_email')?.setFilterValue(event.target.value)
-              }
-              className="max-w-sm"
-            />
-            {table.getFilteredSelectedRowModel().rows.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteSelected}
-              >
-                Revoke ({table.getFilteredSelectedRowModel().rows.length})
-              </Button>
-            )}
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
-                Columns <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    )
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && 'selected'}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    {loading ? 'Loading...' : 'No results.'}
-                  </TableCell>
-                </TableRow>
+      {/* Add/Edit Role Dialog */}
+      <Dialog open={addRoleOpen || editRoleOpen} onOpenChange={(open) => {
+        if (!open) {
+          setAddRoleOpen(false)
+          setEditRoleOpen(false)
+          setSelectedRole(null)
+          roleForm.reset()
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editRoleOpen ? 'Edit Role' : 'Create New Role'}</DialogTitle>
+            <DialogDescription>
+              {editRoleOpen ? 'Update the role details below' : 'Define a new role with specific permissions'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={roleForm.handleSubmit(
+            editRoleOpen ? handleUpdateRole : handleCreateRole,
+            (errors) => {
+              console.log('Form validation errors:', errors)
+              toast.error('Please fix the form errors')
+            }
+          )} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="roleName">Role Name</Label>
+              <Input
+                id="roleName"
+                placeholder="e.g., Editor, Viewer, Manager"
+                {...roleForm.register('name')}
+              />
+              {roleForm.formState.errors.name && (
+                <p className="text-sm text-destructive">{roleForm.formState.errors.name.message}</p>
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
 
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <div className="flex-1 text-sm text-muted-foreground">
-            {table.getFilteredSelectedRowModel().rows.length} of{' '}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
-          </div>
-          <div className="space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="roleDescription">Description (Optional)</Label>
+              <Input
+                id="roleDescription"
+                placeholder="Brief description of this role"
+                {...roleForm.register('description')}
+              />
+              {roleForm.formState.errors.description && (
+                <p className="text-sm text-destructive">{roleForm.formState.errors.description.message}</p>
+              )}
+            </div>
 
-      {/* Delete Confirmation Dialog */}
+            <div className="space-y-2">
+              <Label>Permissions</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['select', 'insert', 'update', 'delete'] as PermissionAction[]).map((permission) => (
+                  <div key={permission} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`perm-${permission}`}
+                      checked={roleForm.watch('permissions')?.includes(permission)}
+                      onCheckedChange={(checked) => {
+                        const current = roleForm.getValues('permissions') || []
+                        if (checked) {
+                          roleForm.setValue('permissions', [...current, permission])
+                        } else {
+                          roleForm.setValue('permissions', current.filter(p => p !== permission))
+                        }
+                      }}
+                    />
+                    <label htmlFor={`perm-${permission}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize">
+                      {permission}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {roleForm.formState.errors.permissions && (
+                <p className="text-sm text-destructive">{roleForm.formState.errors.permissions.message}</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setAddRoleOpen(false)
+                setEditRoleOpen(false)
+                setSelectedRole(null)
+                roleForm.reset()
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Saving...' : editRoleOpen ? 'Update Role' : 'Create Role'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Permission Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -768,6 +1212,28 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Revoke Permission
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Role Confirmation Dialog */}
+      <AlertDialog open={deleteRoleDialogOpen} onOpenChange={setDeleteRoleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the <strong>{roleToDelete?.name}</strong> role.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRole}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Role
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

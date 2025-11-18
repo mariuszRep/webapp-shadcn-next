@@ -37,6 +37,9 @@ export function SettingsClient({ organizations: initialOrganizations, user }: Se
   )
 
   const selectedOrg = organizations.find(org => org.id === selectedOrgId)
+  
+  // Check if we're on an organization-specific settings page
+  const isOrgSpecificPage = pathname.includes('/organization/')
 
   React.useEffect(() => {
     if (urlOrgId) {
@@ -57,13 +60,26 @@ export function SettingsClient({ organizations: initialOrganizations, user }: Se
   const handleOrganizationsChange = async () => {
     const result = await getUserOrganizations()
     if (result.success && result.organizations) {
-      setOrganizations(result.organizations)
+      const orgs = result.organizations
+      setOrganizations(orgs)
       setSelectedOrgId((prev) => {
-        if (prev && result.organizations.some((org) => org.id === prev)) {
+        if (prev && orgs.some((org) => org.id === prev)) {
           return prev
         }
-        return result.organizations[0]?.id ?? null
+        return orgs[0]?.id ?? null
       })
+    }
+  }
+
+  const handleOrganizationChange = (orgId: string) => {
+    setSelectedOrgId(orgId)
+    
+    // If we're on an org-specific page, update the URL
+    if (isOrgSpecificPage) {
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      const queryString = params.toString()
+      const newPath = `/organization/${orgId}/settings${queryString ? `?${queryString}` : ''}`
+      router.push(newPath)
     }
   }
 
@@ -96,7 +112,7 @@ export function SettingsClient({ organizations: initialOrganizations, user }: Se
       <SettingsSidebar
         organizations={organizations}
         selectedOrgId={selectedOrgId}
-        onSelectOrg={setSelectedOrgId}
+        onSelectOrg={handleOrganizationChange}
         onOrganizationsChange={handleOrganizationsChange}
         activeSection={activeSection}
         onSectionChange={handleSectionChange}

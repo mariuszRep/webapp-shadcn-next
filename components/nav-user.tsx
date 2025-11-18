@@ -45,9 +45,9 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const context = useOrganizationWorkspace()
 
-  // Build settings URL with current org/workspace context
-  const settingsUrl = context?.organization && context?.workspace
-    ? `/organization/${context.organization.id}/workspace/${context.workspace.id}/settings`
+  // Build settings URL with current org context (organization-level settings)
+  const settingsUrl = context?.organization
+    ? `/organization/${context.organization.id}/settings`
     : '/settings'
 
   return (
