@@ -8,6 +8,8 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -70,25 +72,25 @@ export function SettingsSidebar({
         />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.value}>
-              <SidebarMenuButton
-                size="lg"
-                isActive={activeSection === item.value}
-                onClick={() => onSectionChange(item.value)}
-                disabled={navigationDisabled}
-                className="items-start"
-              >
-                <item.icon className="mt-0.5 size-4" />
-                <div className="grid flex-1 text-left">
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">{item.description}</span>
-                </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarMenu>
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.value}>
+                <SidebarMenuButton
+                  tooltip={item.label}
+                  isActive={activeSection === item.value}
+                  onClick={() => onSectionChange(item.value)}
+                  disabled={navigationDisabled}
+                  aria-current={activeSection === item.value ? 'page' : undefined}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
