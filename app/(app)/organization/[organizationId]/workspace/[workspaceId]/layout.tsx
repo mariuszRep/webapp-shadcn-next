@@ -34,9 +34,9 @@ export default async function WorkspaceLayout({
     redirect('/login')
   }
 
-  // Fetch organization and workspace data with access validation
-  const organization = await getOrganization(organizationId, user.id)
-  const workspace = await getWorkspace(workspaceId, organizationId, user.id)
+  // Fetch organization and workspace data
+  const organization = await getOrganization(organizationId)
+  const workspace = await getWorkspace(workspaceId, organizationId)
 
   return (
     <OrganizationWorkspaceProvider

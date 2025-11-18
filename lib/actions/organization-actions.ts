@@ -141,16 +141,6 @@ export async function deleteOrganization(organizationId: string): Promise<{ succ
       return { success: false, error: 'Unauthorized' }
     }
 
-    // Check if this is the user's only organization
-    const { data: orgs } = await supabase
-      .from('organizations')
-      .select('id')
-      .eq('created_by', user.id)
-
-    if (orgs && orgs.length === 1 && orgs[0].id === organizationId) {
-      return { success: false, error: 'Cannot delete your only organization' }
-    }
-
     // Delete organization (RLS will handle permission checking)
     const { error } = await supabase
       .from('organizations')
@@ -184,7 +174,7 @@ export async function getOrganizationDefaultWorkspace(organizationId: string): P
       return { success: false, error: 'Unauthorized' }
     }
 
-    const workspaceId = await getFirstWorkspaceForOrg(organizationId, user.id)
+    const workspaceId = await getFirstWorkspaceForOrg(organizationId)
 
     return { success: true, workspaceId }
   } catch (error) {

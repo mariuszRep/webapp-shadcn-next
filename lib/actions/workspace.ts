@@ -11,7 +11,7 @@ import type { Organization, Workspace } from '@/lib/types/database'
 // =====================================================
 
 // Cache the organization fetch to deduplicate across Server Components
-export const getOrganization = cache(async (organizationId: string, userId: string): Promise<Organization> => {
+export const getOrganization = cache(async (organizationId: string): Promise<Organization> => {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -24,16 +24,11 @@ export const getOrganization = cache(async (organizationId: string, userId: stri
     notFound()
   }
 
-  // Validate user has access (created by or updated by)
-  if (data.created_by !== userId && data.updated_by !== userId) {
-    notFound()
-  }
-
   return data
 })
 
 // Cache the workspace fetch to deduplicate across Server Components
-export const getWorkspace = cache(async (workspaceId: string, organizationId: string, userId: string): Promise<Workspace> => {
+export const getWorkspace = cache(async (workspaceId: string, organizationId: string): Promise<Workspace> => {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -44,11 +39,6 @@ export const getWorkspace = cache(async (workspaceId: string, organizationId: st
     .single()
 
   if (error || !data) {
-    notFound()
-  }
-
-  // Validate user has access
-  if (data.created_by !== userId && data.updated_by !== userId) {
     notFound()
   }
 
@@ -90,14 +80,13 @@ export const getPersonalWorkspace = cache(async (userId: string): Promise<{ orga
 })
 
 // Get first workspace for an organization
-export async function getFirstWorkspaceForOrg(organizationId: string, userId: string): Promise<string> {
+export async function getFirstWorkspaceForOrg(organizationId: string): Promise<string> {
   const supabase = await createClient()
 
   const { data: workspace, error } = await supabase
     .from('workspaces')
     .select('id')
     .eq('organization_id', organizationId)
-    .or(`created_by.eq.${userId},updated_by.eq.${userId}`)
     .order('created_at', { ascending: true })
     .limit(1)
     .single()
