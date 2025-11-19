@@ -86,24 +86,24 @@ export class InvitationService {
     const { data: inviter } = await this.supabase.auth.admin.getUserById(inviterId)
 
     // Step 1: Check if user already exists
-    // We check the public.users view first as it's more reliable than listUsers()
-    const { data: publicUser } = await this.supabase
-      .from('users')
-      .select('id, email')
-      .ilike('email', email)
+    // Step 1: Check if user already exists
+    // We use a secure RPC function to check for existing users by email (case-insensitive)
+    const { data: rpcUser, error: rpcError } = await (this.supabase as any)
+      .rpc('get_user_by_email', { email })
       .single()
 
-    if (publicUser && publicUser.id) {
+    if (rpcUser && rpcUser.id) {
       // User already exists - generate magic link and send email
-      userId = publicUser.id
+      userId = rpcUser.id
       isExistingUser = true
 
       // Generate magic link that redirects to the new organization
+      // Existing users should go to the organization page
       const { data: magicLinkData, error: magicLinkError } = await this.supabase.auth.admin.generateLink({
         type: 'magiclink',
         email: email,
         options: {
-          redirectTo: redirectUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL || ''}/auth/callback?next=/organization/${orgId}`,
+          redirectTo: redirectUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback?next=/organization/${orgId}`,
         },
       })
 
@@ -127,7 +127,7 @@ export class InvitationService {
         const { data: authData, error: authError } = await this.supabase.auth.admin.inviteUserByEmail(
           email,
           {
-            redirectTo: redirectUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/onboarding`,
+            redirectTo: redirectUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback?next=/onboarding`,
           }
         )
 
