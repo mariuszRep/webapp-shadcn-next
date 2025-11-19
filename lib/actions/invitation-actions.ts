@@ -213,6 +213,52 @@ export async function acceptInvitation(
   }
 }
 
+/**
+ * Revoke an invitation
+ */
+export async function revokeInvitation(
+  invitationId: string,
+  organizationId: string
+): Promise<{
+  success: boolean
+  data?: { userId: string; invitationId: string }
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+    const adminClient = createAdminClient()
+
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    // Create invitation service instance with admin client
+    const invitationService = new InvitationService(adminClient)
+
+    // Revoke invitation
+    const result = await invitationService.revokeInvitation(invitationId, organizationId)
+
+    // Revalidate organization settings page
+    revalidatePath(`/organization/${organizationId}/settings`)
+
+    return {
+      success: true,
+      data: result,
+    }
+  } catch (error) {
+    console.error('Error revoking invitation:', error)
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to revoke invitation'
+    return { success: false, error: errorMessage }
+  }
+}
+
 export interface InvitationWithDetails {
   id: string
   email: string
@@ -249,7 +295,7 @@ export async function getOrganizationInvitations(
     }
 
     // Fetch all permissions for this organization
-    const { data: permissions } = await supabase
+    const { data: permissions, error: permissionsError } = await supabase
       .from('permissions')
       .select(`
         id,

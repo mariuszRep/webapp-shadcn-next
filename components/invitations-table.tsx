@@ -43,6 +43,7 @@ import {
   Mail,
   Trash2,
 } from 'lucide-react'
+import { revokeInvitation } from '@/lib/actions/invitation-actions'
 
 interface Invitation {
   id: string
@@ -65,6 +66,7 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTab, setSelectedTab] = useState('all')
   const [invitationToDelete, setInvitationToDelete] = useState<string | null>(null)
+  const [isRevoking, setIsRevoking] = useState(false)
 
   // Filter invitations based on tab and search
   const filteredInvitations = useMemo(() => {
@@ -109,11 +111,30 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
   }
 
   const handleRevokeInvitation = async (invitationId: string) => {
-    // TODO: Implement revoke invitation functionality
-    toast.info('Revoke invitation', {
-      description: 'This feature will revoke the invitation and remove user access',
-    })
-    setInvitationToDelete(null)
+    setIsRevoking(true)
+    try {
+      const result = await revokeInvitation(invitationId, organizationId)
+      
+      if (result.success) {
+        toast.success('Invitation revoked', {
+          description: 'The invitation has been revoked and user access removed',
+        })
+        // Refresh the page to update the invitations list
+        router.refresh()
+      } else {
+        toast.error('Failed to revoke invitation', {
+          description: result.error || 'An error occurred',
+        })
+      }
+    } catch (error) {
+      console.error('Error revoking invitation:', error)
+      toast.error('Failed to revoke invitation', {
+        description: 'An unexpected error occurred',
+      })
+    } finally {
+      setIsRevoking(false)
+      setInvitationToDelete(null)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -273,12 +294,13 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isRevoking}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => invitationToDelete && handleRevokeInvitation(invitationToDelete)}
               className="bg-red-600 hover:bg-red-700"
+              disabled={isRevoking}
             >
-              Revoke
+              {isRevoking ? 'Revoking...' : 'Revoke'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

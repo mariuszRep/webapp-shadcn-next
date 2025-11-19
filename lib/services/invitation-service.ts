@@ -388,4 +388,52 @@ export class InvitationService {
       alreadyAccepted: false,
     }
   }
+
+  /**
+   * Revoke an invitation and remove all associated permissions
+   * This will delete the invitation and all permissions for the user in the organization
+   */
+  async revokeInvitation(invitationId: string, organizationId: string) {
+    // Validate input
+    AcceptInvitationSchema.parse({ invitationId })
+
+    // Get invitation
+    const { data: invitation, error: getError } = await this.supabase
+      .from('invitations')
+      .select('*')
+      .eq('id', invitationId)
+      .single()
+
+    if (getError || !invitation) {
+      throw new Error('Invitation not found')
+    }
+
+    const userId = invitation.user_id
+
+    // Delete all permissions for this user in this organization
+    const { error: permissionsError } = await this.supabase
+      .from('permissions')
+      .delete()
+      .eq('principal_id', userId)
+      .eq('org_id', organizationId)
+
+    if (permissionsError) {
+      throw new Error(`Failed to delete permissions: ${permissionsError.message}`)
+    }
+
+    // Delete the invitation
+    const { error: deleteError } = await this.supabase
+      .from('invitations')
+      .delete()
+      .eq('id', invitationId)
+
+    if (deleteError) {
+      throw new Error(`Failed to delete invitation: ${deleteError.message}`)
+    }
+
+    return {
+      userId,
+      invitationId,
+    }
+  }
 }

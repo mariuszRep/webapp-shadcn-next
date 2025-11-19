@@ -20,6 +20,7 @@ export function InvitationsManager({ organizationId }: InvitationsManagerProps) 
 
   useEffect(() => {
     loadInvitations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId])
 
   async function loadInvitations() {
