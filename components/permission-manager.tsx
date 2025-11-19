@@ -770,14 +770,17 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Filter by email..."
-                  value={(table.getColumn('user_email')?.getFilterValue() as string) ?? ''}
-                  onChange={(event) =>
-                    table.getColumn('user_email')?.setFilterValue(event.target.value)
-                  }
-                  className="max-w-sm"
-                />
+                <div className="relative max-w-lg w-full">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Filter by email..."
+                    value={(table.getColumn('user_email')?.getFilterValue() as string) ?? ''}
+                    onChange={(event) =>
+                      table.getColumn('user_email')?.setFilterValue(event.target.value)
+                    }
+                    className="pl-9 w-[400px]"
+                  />
+                </div>
                 {table.getFilteredSelectedRowModel().rows.length > 0 && (
                   <Button
                     variant="destructive"
@@ -827,9 +830,9 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
                             {header.isPlaceholder
                               ? null
                               : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
                           </TableHead>
                         )
                       })}
@@ -911,14 +914,17 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
 
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Input
-                placeholder="Filter by name..."
-                value={(roleTable.getColumn('name')?.getFilterValue() as string) ?? ''}
-                onChange={(event) =>
-                  roleTable.getColumn('name')?.setFilterValue(event.target.value)
-                }
-                className="max-w-sm"
-              />
+              <div className="relative max-w-lg w-full">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Filter by name..."
+                  value={(roleTable.getColumn('name')?.getFilterValue() as string) ?? ''}
+                  onChange={(event) =>
+                    roleTable.getColumn('name')?.setFilterValue(event.target.value)
+                  }
+                  className="pl-9 w-[400px]"
+                />
+              </div>
             </div>
 
             <div className="rounded-md border">
@@ -932,9 +938,9 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
                             {header.isPlaceholder
                               ? null
                               : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
                           </TableHead>
                         )
                       })}

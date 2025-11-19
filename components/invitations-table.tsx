@@ -3,6 +3,18 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   DropdownMenu,
@@ -22,6 +35,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
@@ -42,6 +56,7 @@ import {
   Settings,
   Mail,
   Trash2,
+  ChevronDown,
 } from 'lucide-react'
 import { revokeInvitation } from '@/lib/actions/invitation-actions'
 
@@ -63,31 +78,21 @@ interface InvitationsTableProps {
 
 export function InvitationsTable({ organizationId, invitations }: InvitationsTableProps) {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedTab, setSelectedTab] = useState('all')
   const [invitationToDelete, setInvitationToDelete] = useState<string | null>(null)
   const [isRevoking, setIsRevoking] = useState(false)
 
-  // Filter invitations based on tab and search
+  // Table state
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState({})
+
+  // Filter invitations based on tab
   const filteredInvitations = useMemo(() => {
-    let filtered = invitations
-
-    // Filter by status tab
-    if (selectedTab !== 'all') {
-      filtered = filtered.filter(inv => inv.status === selectedTab)
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(inv =>
-        inv.email.toLowerCase().includes(query) ||
-        inv.orgRole.toLowerCase().includes(query)
-      )
-    }
-
-    return filtered
-  }, [invitations, selectedTab, searchQuery])
+    if (selectedTab === 'all') return invitations
+    return invitations.filter(inv => inv.status === selectedTab)
+  }, [invitations, selectedTab])
 
   // Count invitations by status
   const statusCounts = useMemo(() => {
@@ -114,7 +119,7 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
     setIsRevoking(true)
     try {
       const result = await revokeInvitation(invitationId, organizationId)
-      
+
       if (result.success) {
         toast.success('Invitation revoked', {
           description: 'The invitation has been revoked and user access removed',
@@ -150,19 +155,130 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
     }
   }
 
+  const columns: ColumnDef<Invitation>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+      cell: ({ row }) => <div className="font-medium">{row.getValue('email')}</div>,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => getStatusBadge(row.getValue('status')),
+    },
+    {
+      accessorKey: 'orgRole',
+      header: 'Organization Role',
+      cell: ({ row }) => <div className="capitalize">{row.getValue('orgRole')}</div>,
+    },
+    {
+      accessorKey: 'workspaceCount',
+      header: 'Workspaces',
+      cell: ({ row }) => <div>{row.getValue('workspaceCount')}</div>,
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Invited',
+      cell: ({ row }) => (
+        <div className="text-muted-foreground">
+          {formatDistanceToNow(new Date(row.getValue('createdAt')), { addSuffix: true })}
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const invitation = row.original
+        return (
+          <div className="text-right">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleConfigureWorkspaces(invitation.userId)}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Configure Workspaces
+                </DropdownMenuItem>
+                {invitation.status === 'pending' && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => handleResendEmail(invitation.id, invitation.email)}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Resend Email
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => setInvitationToDelete(invitation.id)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Revoke Invitation
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )
+      },
+    },
+  ]
+
+  const table = useReactTable({
+    data: filteredInvitations,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  })
+
   return (
     <div className="space-y-4">
       {/* Header Actions */}
       <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by email or role..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <h2 className="text-2xl font-bold tracking-tight">Invitations</h2>
         <Button onClick={() => router.push(`/organization/${organizationId}/settings/invitations/new`)}>
           <UserPlus className="mr-2 h-4 w-4" />
           Invite User
@@ -186,100 +302,124 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={selectedTab} className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {selectedTab === 'all' ? 'All Invitations' : `${selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)} Invitations`}
-              </CardTitle>
-              <CardDescription>
-                {filteredInvitations.length} invitation{filteredInvitations.length !== 1 ? 's' : ''} found
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredInvitations.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">
-                    {searchQuery ? 'No invitations found matching your search' : 'No invitations yet'}
-                  </p>
-                  {!searchQuery && (
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => router.push(`/organization/${organizationId}/settings/invitations/new`)}
+        <TabsContent value={selectedTab} className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="relative max-w-lg w-full">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Filter by email..."
+                  value={(table.getColumn('email')?.getFilterValue() as string) ?? ''}
+                  onChange={(event) =>
+                    table.getColumn('email')?.setFilterValue(event.target.value)
+                  }
+                  className="pl-9 w-[400px]"
+                />
+              </div>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="ml-auto">
+                  Columns <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
+                      >
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        </TableHead>
+                      )
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && 'selected'}
                     >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Invite Your First User
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Organization Role</TableHead>
-                      <TableHead>Workspaces</TableHead>
-                      <TableHead>Invited</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvitations.map((invitation) => (
-                      <TableRow key={invitation.id}>
-                        <TableCell className="font-medium">{invitation.email}</TableCell>
-                        <TableCell>{getStatusBadge(invitation.status)}</TableCell>
-                        <TableCell className="capitalize">{invitation.orgRole}</TableCell>
-                        <TableCell>{invitation.workspaceCount}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDistanceToNow(new Date(invitation.createdAt), { addSuffix: true })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleConfigureWorkspaces(invitation.userId)}
-                              >
-                                <Settings className="mr-2 h-4 w-4" />
-                                Configure Workspaces
-                              </DropdownMenuItem>
-                              {invitation.status === 'pending' && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => handleResendEmail(invitation.id, invitation.email)}
-                                  >
-                                    <Mail className="mr-2 h-4 w-4" />
-                                    Resend Email
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-red-600"
-                                    onClick={() => setInvitationToDelete(invitation.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Revoke Invitation
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center justify-end space-x-2 py-4">
+            <div className="flex-1 text-sm text-muted-foreground">
+              {table.getFilteredSelectedRowModel().rows.length} of{' '}
+              {table.getFilteredRowModel().rows.length} row(s) selected.
+            </div>
+            <div className="space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -308,3 +448,4 @@ export function InvitationsTable({ organizationId, invitations }: InvitationsTab
     </div>
   )
 }
+
