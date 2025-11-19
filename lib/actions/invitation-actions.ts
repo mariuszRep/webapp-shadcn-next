@@ -265,6 +265,13 @@ export async function getOrganizationInvitations(
       .eq('object_id', organizationId)
       .eq('principal_type', 'user')
 
+    if (permissionsError) {
+      console.error('Error fetching permissions:', permissionsError)
+      return { success: false, error: 'Failed to fetch permissions' }
+    }
+
+    console.log('Found permissions:', permissions?.length)
+
     // Get unique user IDs
     const userIds = [...new Set(permissions?.map(p => p.principal_id) || [])]
 

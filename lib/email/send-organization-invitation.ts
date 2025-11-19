@@ -1,5 +1,4 @@
 import { createEmailClient } from './client'
-import React from 'react'
 
 interface SendOrganizationInvitationParams {
   to: string
