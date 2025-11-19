@@ -52,7 +52,7 @@ export interface InvitedUserDetails {
  * Handles invitation creation, acceptance, and permission assignment
  */
 export class InvitationService {
-  constructor(private readonly supabase: SupabaseClient<Database>) {}
+  constructor(private readonly supabase: SupabaseClient<Database>) { }
 
   /**
    * Send an invitation to a user with organization role
@@ -67,7 +67,7 @@ export class InvitationService {
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 7)
 
-    let userId: string
+    let userId: string = ''
     let isExistingUser = false
 
     // Fetch organization and role details for email
@@ -86,12 +86,16 @@ export class InvitationService {
     const { data: inviter } = await this.supabase.auth.admin.getUserById(inviterId)
 
     // Step 1: Check if user already exists
-    const { data: existingUsers } = await this.supabase.auth.admin.listUsers()
-    const existingUser = existingUsers?.users?.find(u => u.email === email)
+    // We check the public.users view first as it's more reliable than listUsers()
+    const { data: publicUser } = await this.supabase
+      .from('users')
+      .select('id, email')
+      .ilike('email', email)
+      .single()
 
-    if (existingUser) {
+    if (publicUser && publicUser.id) {
       // User already exists - generate magic link and send email
-      userId = existingUser.id
+      userId = publicUser.id
       isExistingUser = true
 
       // Generate magic link that redirects to the new organization
@@ -99,7 +103,7 @@ export class InvitationService {
         type: 'magiclink',
         email: email,
         options: {
-          redirectTo: redirectUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/organization/${orgId}`,
+          redirectTo: redirectUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL || ''}/auth/callback?next=/organization/${orgId}`,
         },
       })
 
@@ -119,22 +123,66 @@ export class InvitationService {
       }
     } else {
       // User doesn't exist - create via invite (Supabase sends the email automatically)
-      const { data: authData, error: authError } = await this.supabase.auth.admin.inviteUserByEmail(
-        email,
-        {
-          redirectTo: redirectUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/onboarding`,
+      try {
+        const { data: authData, error: authError } = await this.supabase.auth.admin.inviteUserByEmail(
+          email,
+          {
+            redirectTo: redirectUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/onboarding`,
+          }
+        )
+
+        if (authError) {
+          // If error is "User already registered", treat as existing user
+          // This is a fallback in case the public.users check failed for some reason
+          if (authError.message.includes('already been registered') || authError.status === 422) {
+            // We need to find the user ID. Since public.users check failed, we try listUsers as last resort
+            // or just fail if we can't find them.
+            const { data: existingUsers } = await this.supabase.auth.admin.listUsers()
+            const foundUser = existingUsers?.users?.find(u => u.email === email)
+
+            if (foundUser) {
+              userId = foundUser.id
+              isExistingUser = true
+
+              // Re-run the magic link logic for existing user
+              const { data: magicLinkData, error: magicLinkError } = await this.supabase.auth.admin.generateLink({
+                type: 'magiclink',
+                email: email,
+                options: {
+                  redirectTo: redirectUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL || ''}/auth/callback?next=/organization/${orgId}`,
+                },
+              })
+
+              if (!magicLinkError && magicLinkData?.properties?.action_link) {
+                await sendOrganizationInvitationEmail({
+                  to: email,
+                  organizationName: organization?.name || 'the organization',
+                  inviterName: inviter?.user?.user_metadata?.name,
+                  inviterEmail: inviter?.user?.email || 'unknown',
+                  magicLink: magicLinkData.properties.action_link,
+                  roleName: role?.name || 'member',
+                  roleDescription: role?.description,
+                })
+              }
+            } else {
+              throw authError
+            }
+          } else {
+            throw new Error(`Failed to invite user: ${authError.message}`)
+          }
+        } else if (!authData?.user?.id) {
+          throw new Error('Failed to create user account')
+        } else {
+          userId = authData.user.id
         }
-      )
-
-      if (authError) {
-        throw new Error(`Failed to invite user: ${authError.message}`)
+      } catch (error) {
+        // Re-throw if it's not handled above
+        if (isExistingUser) {
+          // If we recovered and found the user, continue
+        } else {
+          throw error
+        }
       }
-
-      if (!authData?.user?.id) {
-        throw new Error('Failed to create user account')
-      }
-
-      userId = authData.user.id
     }
 
     // Step 2: Create invitation record
