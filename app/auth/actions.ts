@@ -175,3 +175,48 @@ export async function signInWithOAuth(provider: 'google' | 'github') {
     redirect(data.url)
   }
 }
+
+export async function requestPasswordReset(formData: FormData) {
+  const supabase = await createClient()
+
+  const email = (formData.get('email') as string)?.trim()
+
+  // Validate email
+  const emailValidation = validateEmail(email)
+  if (!emailValidation.valid) {
+    return { error: emailValidation.error }
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { error: null }
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = await createClient()
+
+  const password = formData.get('password') as string
+
+  // Validate password strength
+  const passwordValidation = validatePassword(password)
+  if (!passwordValidation.valid) {
+    return { error: passwordValidation.error }
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  redirect('/portal')
+}

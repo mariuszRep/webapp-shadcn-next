@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,8 +12,9 @@ import { signIn, sendMagicLink } from '@/app/auth/actions'
 
 export function LoginForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('magic-link')
+  const [activeTab, setActiveTab] = useState('password')
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -113,6 +115,18 @@ export function LoginForm() {
               {isLoading ? 'Loading...' : activeTab === 'magic-link' ? 'Send Magic Link' : 'Sign In'}
             </Button>
           </form>
+
+          {activeTab === 'password' && (
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => router.push('/forgot-password')}
+                className="text-sm text-primary hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
         </Tabs>
       </CardContent>
     </Card>
