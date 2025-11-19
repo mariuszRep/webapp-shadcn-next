@@ -51,6 +51,44 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Onboarding check: redirect users without organization membership to /onboarding
+  if (user) {
+    const pathname = request.nextUrl.pathname
+
+    // Skip onboarding check for these paths to prevent redirect loops
+    const skipOnboardingCheck =
+      pathname.startsWith('/onboarding') ||
+      pathname.startsWith('/auth') ||
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/signup') ||
+      pathname.startsWith('/forgot-password') ||
+      pathname === '/'
+
+    if (!skipOnboardingCheck) {
+      // Check if user has organization membership
+      const { data: memberships, count } = await supabase
+        .from('users_permissions')
+        .select('object_id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('object_type', 'organization')
+
+      const hasOrganizations = (count || 0) > 0
+
+      // Redirect to onboarding if user has no organizations
+      if (!hasOrganizations) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/onboarding'
+        const response = NextResponse.redirect(url)
+        // Copy cookies from supabaseResponse to maintain session
+        const cookies = supabaseResponse.cookies.getAll()
+        cookies.forEach(cookie => {
+          response.cookies.set(cookie.name, cookie.value)
+        })
+        return response
+      }
+    }
+  }
+
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:

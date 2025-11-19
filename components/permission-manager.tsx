@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Building2, FolderKanban, Shield, Trash2, Plus, Search, ChevronDown, MoreHorizontal, Pencil } from 'lucide-react'
+import { Building2, FolderKanban, Shield, Trash2, Plus, Search, ChevronDown, MoreHorizontal, Pencil, Mail } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -87,6 +87,7 @@ import {
 } from '@/lib/schemas'
 import { usePermissionStore } from '@/lib/stores/permission-store'
 import type { PermissionAction, ObjectType, Role } from '@/lib/types/database'
+import { InvitationsManager } from '@/components/invitations-manager'
 
 interface PermissionManagerProps {
   orgId: string
@@ -736,7 +737,7 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="permissions" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Permissions
@@ -744,6 +745,10 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
           <TabsTrigger value="roles" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Roles
+          </TabsTrigger>
+          <TabsTrigger value="invitations" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Invitations
           </TabsTrigger>
         </TabsList>
 
@@ -992,6 +997,11 @@ export function PermissionManager({ orgId }: PermissionManagerProps) {
               </div>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Invitations Tab */}
+        <TabsContent value="invitations" className="space-y-4">
+          <InvitationsManager organizationId={orgId} />
         </TabsContent>
       </Tabs>
 
