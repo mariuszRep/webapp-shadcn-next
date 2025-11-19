@@ -163,8 +163,8 @@ export function OnboardingFlow({ userEmail, invitationDetails }: OnboardingFlowP
           description: `${result.data.name} is ready to use`,
         })
 
-        // Redirect to the new workspace
-        router.push(`/organization/${organizationId}/workspace/${result.data.id}`)
+        // Redirect to portal - it will automatically route to the workspace
+        router.push('/portal')
       } else {
         toast.error('Failed to create workspace', {
           description: result.error || 'An unexpected error occurred',

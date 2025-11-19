@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { checkUserOrganizationMembership } from '@/lib/actions/onboarding-actions'
 import { OnboardingFlow } from '@/components/onboarding-flow'
 
 export default async function OnboardingPage() {
@@ -13,13 +12,9 @@ export default async function OnboardingPage() {
     redirect('/login')
   }
 
-  // Check if user already has organization access
-  const membershipResult = await checkUserOrganizationMembership()
-
-  if (membershipResult.success && membershipResult.data?.hasOrganizations) {
-    // User already has organizations, redirect to settings
-    redirect('/settings')
-  }
+  // Trust middleware - if we're on this page, user has no organizations
+  // Middleware already checked and redirected users without orgs here
+  // No need to check again (avoids blocking materialized view refresh)
 
   // Check for pending invitation
   const { data: invitation } = await supabase

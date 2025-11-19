@@ -81,40 +81,6 @@ export class OnboardingService {
       throw new Error(`Failed to create organization: ${orgError?.message || 'Unknown error'}`)
     }
 
-    // Query for Owner role ID
-    const { data: ownerRole, error: roleError } = await this.supabase
-      .from('roles')
-      .select('id')
-      .eq('name', 'owner')
-      .is('org_id', null)
-      .single()
-
-    if (roleError || !ownerRole) {
-      // Rollback: Delete organization if role query fails
-      await this.supabase.from('organizations').delete().eq('id', organization.id)
-      throw new Error(`Failed to find Owner role: ${roleError?.message || 'Role not found'}`)
-    }
-
-    // Create organization permission
-    const { error: permissionError } = await this.supabase
-      .from('permissions')
-      .insert({
-        org_id: organization.id,
-        principal_type: 'user',
-        principal_id: userId,
-        object_type: 'organization',
-        object_id: organization.id,
-        role_id: ownerRole.id,
-        created_by: userId,
-        updated_by: userId,
-      })
-
-    if (permissionError) {
-      // Rollback: Delete organization if permission creation fails
-      await this.supabase.from('organizations').delete().eq('id', organization.id)
-      throw new Error(`Failed to create organization permission: ${permissionError.message}`)
-    }
-
     return {
       id: organization.id,
       name: organization.name,
@@ -149,40 +115,6 @@ export class OnboardingService {
       throw new Error(
         `Failed to create workspace: ${workspaceError?.message || 'Unknown error'}`
       )
-    }
-
-    // Query for Owner role ID (same role used for organizations and workspaces)
-    const { data: ownerRole, error: roleError } = await this.supabase
-      .from('roles')
-      .select('id')
-      .eq('name', 'owner')
-      .is('org_id', null)
-      .single()
-
-    if (roleError || !ownerRole) {
-      // Rollback: Delete workspace if role query fails
-      await this.supabase.from('workspaces').delete().eq('id', workspace.id)
-      throw new Error(`Failed to find Owner role: ${roleError?.message || 'Role not found'}`)
-    }
-
-    // Create workspace permission
-    const { error: permissionError } = await this.supabase
-      .from('permissions')
-      .insert({
-        org_id: orgId,
-        principal_type: 'user',
-        principal_id: userId,
-        object_type: 'workspace',
-        object_id: workspace.id,
-        role_id: ownerRole.id,
-        created_by: userId,
-        updated_by: userId,
-      })
-
-    if (permissionError) {
-      // Rollback: Delete workspace if permission creation fails
-      await this.supabase.from('workspaces').delete().eq('id', workspace.id)
-      throw new Error(`Failed to create workspace permission: ${permissionError.message}`)
     }
 
     return {
