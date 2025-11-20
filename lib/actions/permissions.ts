@@ -739,7 +739,6 @@ export async function getUserOrganizations(): Promise<{
     const { data: orgMemberships } = await supabase
       .from('users_permissions')
       .select('object_id')
-      .eq('user_id', user.id)
       .eq('object_type', 'organization')
 
     if (!orgMemberships || orgMemberships.length === 0) {

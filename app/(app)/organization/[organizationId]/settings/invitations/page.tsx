@@ -68,19 +68,18 @@ export default async function InvitationsPage({ params }: InvitationsPageProps) 
     usersData.filter(Boolean).map(user => [user!.id, user!.email || 'Unknown'])
   )
 
-  // Fetch workspace permissions count for each user
-  const workspacePermissionsCounts = await Promise.all(
-    userIds.map(async (userId) => {
-      const { data } = await supabase
-        .from('permissions')
-        .select('id', { count: 'exact', head: true })
-        .eq('principal_id', userId)
-        .eq('object_type', 'workspace')
-        .eq('org_id', organizationId)
+  // Fetch workspace permissions for the organization
+  const { data: workspacePermissions } = await supabase
+    .from('permissions')
+    .select('principal_id')
+    .eq('object_type', 'workspace')
+    .eq('org_id', organizationId)
 
-      return { userId, count: data?.length || 0 }
-    })
-  )
+  // Count permissions per user
+  const workspacePermissionsCounts = userIds.map(userId => {
+    const count = workspacePermissions?.filter(p => p.principal_id === userId).length || 0
+    return { userId, count }
+  })
 
   const workspaceCountMap = new Map(
     workspacePermissionsCounts.map(({ userId, count }) => [userId, count])

@@ -134,9 +134,7 @@ export async function checkUserOrganizationMembership(): Promise<{
     const onboardingService = new OnboardingService(supabase)
 
     // Check membership
-    const membership = await onboardingService.checkUserOrganizationMembership({
-      userId: user.id,
-    })
+    const membership = await onboardingService.checkUserOrganizationMembership()
 
     return {
       success: true,

@@ -20,7 +20,6 @@ export default async function OnboardingPage() {
   const { data: invitation } = await supabase
     .from('invitations')
     .select('id, status, expires_at')
-    .eq('user_id', user.id)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -44,7 +43,6 @@ export default async function OnboardingPage() {
       const { data: permissions } = await supabase
         .from('permissions')
         .select('object_id, role_id, roles!inner(name, description)')
-        .eq('principal_id', user.id)
         .eq('object_type', 'organization')
         .limit(1)
         .maybeSingle()
@@ -61,7 +59,6 @@ export default async function OnboardingPage() {
         const { data: workspacePerms, count } = await supabase
           .from('permissions')
           .select('id', { count: 'exact', head: true })
-          .eq('principal_id', user.id)
           .eq('object_type', 'workspace')
 
         const roles = permissions.roles as unknown as { name: string; description: string | null }

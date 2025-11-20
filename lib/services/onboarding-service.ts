@@ -22,13 +22,8 @@ const CreateWorkspaceSchema = z.object({
   userId: z.string().uuid('Invalid user ID'),
 })
 
-const CheckMembershipSchema = z.object({
-  userId: z.string().uuid('Invalid user ID'),
-})
-
 export type CreateOrganizationParams = z.infer<typeof CreateOrganizationSchema>
 export type CreateWorkspaceParams = z.infer<typeof CreateWorkspaceSchema>
-export type CheckMembershipParams = z.infer<typeof CheckMembershipSchema>
 
 export interface OrganizationWithPermission {
   id: string
@@ -129,18 +124,11 @@ export class OnboardingService {
    * Check if a user has any organization memberships
    * Queries the users_permissions view for organization access
    */
-  async checkUserOrganizationMembership(
-    params: CheckMembershipParams
-  ): Promise<OrganizationMembershipStatus> {
-    // Validate input
-    const validated = CheckMembershipSchema.parse(params)
-    const { userId } = validated
-
+  async checkUserOrganizationMembership(): Promise<OrganizationMembershipStatus> {
     // Query users_permissions view for organization memberships
     const { data, error } = await this.supabase
       .from('users_permissions')
       .select('object_id', { count: 'exact', head: false })
-      .eq('user_id', userId)
       .eq('object_type', 'organization')
 
     if (error) {

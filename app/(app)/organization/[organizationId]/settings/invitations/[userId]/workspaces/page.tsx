@@ -40,13 +40,14 @@ export default async function WorkspacePermissionsPage({ params }: WorkspacePerm
   }
 
   // Fetch invited user's latest invitation
-  const { data: invitation } = await supabase
+  // Note: RLS policies should ensure we can only see invitations we're authorized to manage
+  const { data: invitations } = await supabase
     .from('invitations')
-    .select('id')
-    .eq('user_id', userId)
+    .select('id, user_id')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+
+  // Find the invitation for the specific user
+  const invitation = invitations?.find(inv => inv.user_id === userId)
 
   let invitedUserDetails
   if (invitation) {

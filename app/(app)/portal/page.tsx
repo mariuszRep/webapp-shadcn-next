@@ -14,7 +14,6 @@ export default async function PortalPage() {
   const { data: pendingInvitation } = await supabase
     .from('invitations')
     .select('id, status, expires_at')
-    .eq('user_id', user.id)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -41,7 +40,6 @@ export default async function PortalPage() {
   const { data: orgPermissions } = await supabase
     .from('users_permissions')
     .select('object_id, org_id')
-    .eq('user_id', user.id)
     .eq('object_type', 'organization')
 
   if (!orgPermissions || orgPermissions.length === 0) {
@@ -60,7 +58,6 @@ export default async function PortalPage() {
   const { data: workspacePermissions } = await supabase
     .from('users_permissions')
     .select('object_id, role_name, role_permissions')
-    .eq('user_id', user.id)
     .eq('object_type', 'workspace')
     .eq('org_id', firstOrgId)
     .order('object_id', { ascending: true })
@@ -78,7 +75,6 @@ export default async function PortalPage() {
   const { data: orgPermission } = await supabase
     .from('users_permissions')
     .select('role_permissions')
-    .eq('user_id', user.id)
     .eq('object_type', 'organization')
     .eq('object_id', firstOrgId)
     .maybeSingle()

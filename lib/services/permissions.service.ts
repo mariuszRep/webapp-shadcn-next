@@ -50,11 +50,10 @@ export class PermissionsService {
   /**
    * Get all objects of a specific type that a user has access to
    */
-  async getUserObjects(userId: string, objectType: ObjectType): Promise<UsersPermissionsView[]> {
+  async getUserObjects(objectType: ObjectType): Promise<UsersPermissionsView[]> {
     const { data, error } = await this.supabase
       .from('users_permissions')
       .select('*')
-      .eq('user_id', userId)
       .eq('object_type', objectType)
 
     if (error) {
@@ -67,11 +66,10 @@ export class PermissionsService {
   /**
    * Get all organizations a user belongs to
    */
-  async getUserOrganizations(userId: string): Promise<string[]> {
+  async getUserOrganizations(): Promise<string[]> {
     const { data, error } = await this.supabase
       .from('users_permissions')
       .select('object_id')
-      .eq('user_id', userId)
       .eq('object_type', 'organization')
 
     if (error) {
@@ -85,7 +83,6 @@ export class PermissionsService {
    * Check if a user has a specific role on an object
    */
   async hasRole(
-    userId: string,
     objectType: ObjectType,
     objectId: string,
     roleName: string
@@ -93,7 +90,6 @@ export class PermissionsService {
     const { data, error } = await this.supabase
       .from('users_permissions')
       .select('role_name')
-      .eq('user_id', userId)
       .eq('object_type', objectType)
       .eq('object_id', objectId)
       .eq('role_name', roleName)
@@ -110,14 +106,12 @@ export class PermissionsService {
    * Get user's role permissions for a specific object
    */
   async getUserRolePermissions(
-    userId: string,
     objectType: ObjectType,
     objectId: string
   ): Promise<string[]> {
     const { data, error } = await this.supabase
       .from('users_permissions')
       .select('role_permissions')
-      .eq('user_id', userId)
       .eq('object_type', objectType)
       .eq('object_id', objectId)
 
