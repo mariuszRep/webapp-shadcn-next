@@ -65,26 +65,38 @@ export async function updateSession(request: NextRequest) {
       pathname === '/'
 
     if (!skipOnboardingCheck) {
-      // Check if user has organization membership
-      const { data: memberships, count } = await supabase
+      // Check if user has organization membership or global access
+      const { data: memberships } = await supabase
         .from('users_permissions')
-        .select('object_id', { count: 'exact', head: true })
+        .select('object_type')
         .eq('user_id', user.id)
-        .eq('object_type', 'organization')
+        .in('object_type', ['organization', 'system'])
 
-      const hasOrganizations = (count || 0) > 0
+      const hasOrganizations = memberships?.some((m) => m.object_type === 'organization')
+      const isGlobalOwner = memberships?.some((m) => m.object_type === 'system')
 
-      // Redirect to onboarding if user has no organizations
-      if (!hasOrganizations) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/onboarding'
-        const response = NextResponse.redirect(url)
-        // Copy cookies from supabaseResponse to maintain session
-        const cookies = supabaseResponse.cookies.getAll()
-        cookies.forEach(cookie => {
-          response.cookies.set(cookie.name, cookie.value)
-        })
-        return response
+      // Global Owner Logic
+      if (isGlobalOwner) {
+        // Redirect to settings if on onboarding or root, otherwise allow access
+        if (pathname === '/' || pathname.startsWith('/onboarding')) {
+          const url = request.nextUrl.clone()
+          url.pathname = '/settings'
+          return NextResponse.redirect(url)
+        }
+      } else {
+        // Regular User Logic
+        // Redirect to onboarding if user has no organizations
+        if (!hasOrganizations) {
+          const url = request.nextUrl.clone()
+          url.pathname = '/onboarding'
+          const response = NextResponse.redirect(url)
+          // Copy cookies from supabaseResponse to maintain session
+          const cookies = supabaseResponse.cookies.getAll()
+          cookies.forEach((cookie) => {
+            response.cookies.set(cookie.name, cookie.value)
+          })
+          return response
+        }
       }
     }
   }
