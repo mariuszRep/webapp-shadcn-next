@@ -41,6 +41,7 @@ export default async function PortalPage() {
     .from('users_permissions')
     .select('object_id, org_id')
     .eq('object_type', 'organization')
+    .order('object_id', { ascending: true })
 
   if (!orgPermissions || orgPermissions.length === 0) {
     // No organizations - redirect to onboarding
