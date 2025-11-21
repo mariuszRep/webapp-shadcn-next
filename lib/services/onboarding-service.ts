@@ -61,7 +61,7 @@ export class OnboardingService {
     const validated = CreateOrganizationSchema.parse(params)
     const { name, userId } = validated
 
-    // Create organization
+    // Create organization using the authenticated client
     const { data: organization, error: orgError } = await this.supabase
       .from('organizations')
       .insert({
@@ -73,6 +73,7 @@ export class OnboardingService {
       .single()
 
     if (orgError || !organization) {
+      console.error('Organization creation error:', orgError)
       throw new Error(`Failed to create organization: ${orgError?.message || 'Unknown error'}`)
     }
 
@@ -94,7 +95,7 @@ export class OnboardingService {
     const validated = CreateWorkspaceSchema.parse(params)
     const { name, orgId, userId } = validated
 
-    // Create workspace
+    // Create workspace using the authenticated client
     const { data: workspace, error: workspaceError } = await this.supabase
       .from('workspaces')
       .insert({

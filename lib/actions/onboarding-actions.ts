@@ -22,6 +22,15 @@ export async function createOrganizationWithPermissions(
   try {
     const supabase = await createClient()
 
+    // IMPORTANT: Call getSession() to ensure the JWT token is fresh and available
+    // This ensures PostgREST receives the proper Authorization header
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    if (sessionError || !session) {
+      console.error('Session error:', sessionError)
+      return { success: false, error: 'No active session' }
+    }
+
     // Get current user
     const {
       data: { user },
@@ -31,6 +40,19 @@ export async function createOrganizationWithPermissions(
     if (authError || !user) {
       return { success: false, error: 'Unauthorized' }
     }
+
+    console.log('Session details:', {
+      hasAccessToken: !!session.access_token,
+      tokenLength: session.access_token?.length,
+      userId: user.id,
+      sessionUser: session.user?.id
+    })
+
+    // Explicitly set the session to ensure the client uses it
+    await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token
+    })
 
     // Create onboarding service instance
     const onboardingService = new OnboardingService(supabase)
